@@ -86,9 +86,27 @@ Vercel plus Neon or Supabase is the simplest setup.
 
 1. Create the database and run `DATABASE_URL=... npm run db:migrate`.
 2. Import the repo into Vercel and add the variables above. Use the Pro plan, because Hobby doesn't allow commercial use.
-3. `vercel.json` schedules two jobs, and Vercel sends `CRON_SECRET` with both:
-   - `/api/cron/daily-leads` at 01:17 UTC: new leads, Google refreshes and follow-up digests.
-   - `/api/cron/monitors` every 10 minutes: checks client sites and sends alerts. Vercel's Hobby plan only runs crons once a day; on Hobby, call this URL from an outside scheduler (cron-job.org, GitHub Actions) with the header `Authorization: Bearer $CRON_SECRET`.
+3. Schedule the background jobs with [cron-job.org](https://cron-job.org) (see below).
+
+**Scheduled jobs (cron-job.org).** Two jobs keep Pitchcraft running. Set `CRON_JOB_SECRET` to a long random value (`openssl rand -hex 32`), then create two cron jobs at cron-job.org:
+
+| Title | URL | Schedule |
+|---|---|---|
+| Pitchcraft daily | `https://YOUR-DOMAIN/api/cron-job/daily` | Every day at 01:17 UTC |
+| Pitchcraft monitors | `https://YOUR-DOMAIN/api/cron-job/monitors` | Every 10 minutes |
+
+- **Daily:** new leads for every user, refreshes Google data older than 29 days, and sends follow-up reminder emails.
+- **Monitors:** checks every client site on a care plan and emails the freelancer about outages and expiring certificates.
+
+For each job, open the **Advanced** tab and add a request header `Authorization` with the value `Bearer YOUR_CRON_JOB_SECRET`. If you'd rather not use headers, add `?key=YOUR_CRON_JOB_SECRET` to the URL instead. It works the same, but the key then appears in cron-job.org's history.
+
+The route answers at once with `202` and runs the job in the background, because cron-job.org stops waiting after 30 seconds. Results go to the server logs (Vercel: Logs, filter on `cron-job`). To run a job by hand and see its result, add `wait=1`:
+
+```bash
+curl -H "Authorization: Bearer $CRON_JOB_SECRET" "https://YOUR-DOMAIN/api/cron-job/daily?wait=1"
+```
+
+A wrong or missing key gets `401`; an unknown job name gets `404`. The older `/api/cron/daily-leads` and `/api/cron/monitors` routes still exist for Vercel Cron and use `CRON_SECRET`. Use one scheduler or the other, not both, or follow-up emails go out twice.
 
 **Paddle.** Nepal isn't on Paddle's blocked list, but confirm with their support before you rely on it. Then:
 1. Create a product with a $19 monthly and a $149 yearly price, and put the price IDs in `NEXT_PUBLIC_PADDLE_PRICE_MONTHLY` and `NEXT_PUBLIC_PADDLE_PRICE_YEARLY`.
@@ -141,6 +159,7 @@ npm run test:all          # all of the above, plus lint and typecheck
 - Neither Google nor OpenStreetMap provides email addresses. The audit looks for one on the business's own site; when there isn't one, the lead page suggests calling or using the contact form.
 - Google Text Search returns at most 60 businesses per search. Once a user has seen them all, they need a wider distance or another business type.
 - Email confirmation is a reminder, not a gate. If fake signups become a problem, require `emailVerifiedAt` before delivering leads.
+- Background jobs run inside one request, up to 5 minutes. That's plenty for hundreds of users, but beyond that lead delivery should move to a queue.
 - Lead delivery runs one user at a time to stay within OpenStreetMap's fair-use policy. With many users it should move to a queue, probably with a paid Overpass instance.
 - The legal pages are a plain-language starting point. Have a lawyer read them before you grow.
 - Published client sites live at `/s/:slug` on Pitchcraft's domain. Custom domains aren't supported yet; for the client's own domain, download the HTML and host it there. The downloaded copy has call, WhatsApp and email buttons instead of the booking form, since the form needs Pitchcraft behind it.
