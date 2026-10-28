@@ -63,7 +63,7 @@ export default async function QuoteTab({ params }: PageProps<"/app/leads/[id]/qu
       <section>
         <h2 className="mb-4 font-serif text-2xl font-medium">Quote</h2>
         <QuoteEditor
-          key={quote.updatedAt.toISOString()}
+          key={quote.id}
           leadId={lead.id}
           quote={{ id: quote.id, currency: quote.currency, items: quote.items, note: quote.note, validUntil: quote.validUntil }}
           locked={answered}

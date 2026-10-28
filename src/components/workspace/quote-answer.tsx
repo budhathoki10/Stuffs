@@ -42,7 +42,7 @@ export function QuoteAnswer({ quoteId, total }: { quoteId: string; total: string
         </Button>
       </div>
       <FormMessage error={state?.error} />
-      <Button type="button" variant="ghost" className="px-0" onClick={() => setDeclining(true)}>
+      <Button type="button" variant="ghost" className="px-0!" onClick={() => setDeclining(true)}>
         Decline
       </Button>
     </form>

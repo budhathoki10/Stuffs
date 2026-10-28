@@ -27,6 +27,16 @@ export default function PrivacyPage() {
           link.
         </li>
         <li>
+          <strong>Client work:</strong> quotes, invoices, the websites you build for clients, monitoring results, and the
+          payment details you choose to show on your invoices (such as your eSewa ID, bank account or payment QR code).
+          Quotes, invoices and reports are visible to anyone with the link.
+        </li>
+        <li>
+          <strong>Visitors to client websites:</strong> when someone sends a booking request through a site built here, we
+          store their name, contact details and message, email them to the business and the freelancer, and keep a hash of
+          their IP address to limit spam. The business is responsible for answering them.
+        </li>
+        <li>
           <strong>Payments:</strong> plan status and payment references. Card details are handled by Paddle and Khalti;
           we never receive them.
         </li>
@@ -52,15 +62,15 @@ export default function PrivacyPage() {
           Google Maps Platform (Places API) or OpenStreetMap services (Nominatim, Overpass), which receive your target
           city and business type.
         </li>
-        <li>Resend, to send account emails such as password resets.</li>
+        <li>Resend, to send account emails, alerts, and booking requests from client websites.</li>
         <li>Paddle and Khalti, to take payments.</li>
       </ul>
       <p>We don&apos;t sell your personal data.</p>
 
       <h2>How long we keep it</h2>
       <p>
-        We keep your data while your account exists. When you delete your account, your profile, leads, pitches and
-        sessions are deleted immediately. Payment records may be kept by Paddle or Khalti as their laws require.
+        We keep your data while your account exists. When you delete your account, your profile, leads, pitches,
+        client websites, quotes, invoices, monitors and sessions are deleted immediately, and your published sites go offline. Payment records may be kept by Paddle or Khalti as their laws require.
       </p>
 
       <h2>Your rights</h2>

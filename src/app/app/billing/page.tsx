@@ -57,8 +57,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/app/bill
       <section className="mt-12">
         <h2 className="font-serif text-2xl font-medium">{pro ? "Add more time" : "Upgrade to Pro"}</h2>
         <p className="mt-1.5 text-sm text-muted">
-          {PLAN_LIMITS.pro.leadsPerDay} new leads every day and no limit on drafts. Refunded in full if you ask within 14
-          days.
+          {PLAN_LIMITS.pro.leadsPerDay} new leads every day, no limit on drafts, and up to {PLAN_LIMITS.pro.publishedSites} live client
+          websites and care plans. Refunded in full if you ask within 14 days.
         </p>
 
         <div className="mt-8 divide-y divide-border border-y border-border">

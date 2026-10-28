@@ -74,7 +74,7 @@ export function LineItemsEditor({ initial, currency, disabled }: { initial: Line
       </ol>
       <div className="mt-3 flex items-center justify-between gap-4">
         {!disabled ? (
-          <Button type="button" variant="ghost" className="px-0" onClick={() => setRows((rs) => [...rs, toRow({ title: "", amountMinor: 0 })])}>
+          <Button type="button" variant="ghost" className="px-0!" onClick={() => setRows((rs) => [...rs, toRow({ title: "", amountMinor: 0 })])}>
             Add a line
           </Button>
         ) : (

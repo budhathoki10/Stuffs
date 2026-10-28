@@ -157,11 +157,23 @@ test.describe("on a phone", () => {
 
     await logIn(page, bob, PASSWORD);
     await expect(page).toHaveURL(/\/app$/);
-    for (const path of ["/app", "/app/pipeline", "/app/settings", "/app/billing"]) await fits(path);
+    for (const path of ["/app", "/app/pipeline", "/app/clients", "/app/settings", "/app/billing"]) await fits(path);
     await page.goto("/app");
     await page.getByRole("link", { name: /Dentist/ }).first().click();
     await expect(page.getByRole("heading", { name: "Their website" })).toBeVisible();
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow).toBeLessThanOrEqual(0);
+    const lead = new URL(page.url()).pathname;
+    for (const tab of ["", "/quote", "/site", "/care", "/invoices"]) await fits(`${lead}${tab}`);
+
+    // The pages a freelancer's client opens.
+    await page.goto(`${lead}/quote`);
+    await page.getByRole("button", { name: "Build the quote" }).click();
+    const quoteUrl = await page.getByLabel("Link for the client").inputValue();
+    await page.goto(`${lead}/site`);
+    await page.getByRole("button", { name: "Start the website" }).click();
+    await page.getByRole("button", { name: "Publish" }).click();
+    const siteUrl = await page.getByLabel("Link for the client").inputValue();
+    await fits(`${lead}/site`);
+    await fits(new URL(quoteUrl).pathname);
+    await fits(new URL(siteUrl).pathname);
   });
 });

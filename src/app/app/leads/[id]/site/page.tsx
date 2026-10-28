@@ -71,7 +71,7 @@ export default async function SiteTab({ params }: PageProps<"/app/leads/[id]/sit
       </section>
 
       <SiteEditor
-        key={site.updatedAt.toISOString()}
+        key={site.id}
         leadId={lead.id}
         siteId={site.id}
         initialTemplate={site.template as SiteTemplate}

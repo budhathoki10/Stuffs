@@ -132,7 +132,7 @@ export function SiteEditor({
             <Button
               type="button"
               variant="ghost"
-              className="mt-2 px-0"
+              className="mt-2 px-0!"
               onClick={() => setContent((c) => ({ ...c, services: [...c.services, { name: "", description: "" }] }))}
             >
               Add one
@@ -161,8 +161,8 @@ export function SiteEditor({
           </Field>
         </fieldset>
 
-        <FormMessage error={state?.error} success={state?.success} />
-        <div className="sticky bottom-0 -mx-1 bg-background/95 px-1 py-3 backdrop-blur">
+        <div className="sticky bottom-0 -mx-1 space-y-2 bg-background/95 px-1 py-3 backdrop-blur">
+          <FormMessage error={state?.error} success={state?.success} />
           <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : "Save changes"}
           </Button>

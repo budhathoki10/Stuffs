@@ -13,7 +13,7 @@ import { monitorForLead, monitorReport } from "@/lib/services/monitors";
 import { siteForLead, siteUrl } from "@/lib/services/sites";
 import { appUrl } from "@/lib/util";
 import { currencyForAddress } from "@/lib/work/pricing";
-import { daysUntil } from "@/lib/work/monitor";
+import { daysUntil, formatResponse } from "@/lib/work/monitor";
 
 export const metadata: Metadata = { title: "Results and care" };
 
@@ -67,7 +67,11 @@ export default async function CareTab({ params }: PageProps<"/app/leads/[id]/car
             <div className="flex items-end gap-6">
               <div>
                 <Eyebrow>Before</Eyebrow>
-                <p className="mt-1 font-mono text-3xl tabular-nums text-muted">{before ? before.score : "none"}</p>
+                {before ? (
+                  <p className="mt-1 font-mono text-3xl tabular-nums text-muted">{before.score}</p>
+                ) : (
+                  <p className="mt-2.5 text-lg text-muted">No site</p>
+                )}
               </div>
               <span aria-hidden="true" className="pb-1 text-faint">
                 →
@@ -134,10 +138,10 @@ export default async function CareTab({ params }: PageProps<"/app/leads/[id]/car
                 value={report.summary.uptimePct === null ? "–" : `${report.summary.uptimePct}%`}
                 tone={report.summary.uptimePct === null ? undefined : report.summary.uptimePct >= 99 ? "good" : "bad"}
               />
-              <Stat label="Avg response" value={report.summary.avgResponseMs === null ? "–" : `${(report.summary.avgResponseMs / 1000).toFixed(1)}s`} />
+              <Stat label="Avg response" value={report.summary.avgResponseMs === null ? "–" : formatResponse(report.summary.avgResponseMs)} />
               <Stat
                 label="Certificate"
-                value={sslDays === null ? "–" : sslDays < 0 ? "Expired" : `${sslDays} days`}
+                value={sslDays === null ? (monitor.url.startsWith("https:") ? "–" : "No HTTPS") : sslDays < 0 ? "Expired" : `${sslDays} days`}
                 tone={sslDays !== null && sslDays <= 14 ? "bad" : undefined}
               />
             </dl>

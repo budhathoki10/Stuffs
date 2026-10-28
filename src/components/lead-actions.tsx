@@ -24,7 +24,7 @@ export function LeadPitch({
       {pitch && <PitchView key={`${pitch.subject}${pitch.body}`} subject={pitch.subject} body={pitch.body} to={email} />}
       <form action={action} className="space-y-2">
         <input type="hidden" name="leadId" value={leadId} />
-        <Button type="submit" variant={pitch ? "ghost" : "primary"} disabled={pending} className={pitch ? "px-0" : ""}>
+        <Button type="submit" variant={pitch ? "ghost" : "primary"} disabled={pending} className={pitch ? "px-0!" : ""}>
           {pending ? "Drafting…" : pitch ? "Draft another version" : "Draft the email"}
         </Button>
         <FormMessage error={state?.error} />

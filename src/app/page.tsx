@@ -27,6 +27,15 @@ const SOURCE_FAQ = {
   },
 };
 
+const AFTER_YES = [
+  ["Send a quote", "Built from the problems the check found, priced at local rates. You edit it; they accept with one click."],
+  ["Build their website", "A fast one-page site with services, hours, a map, WhatsApp and a booking form. Publish it or hand over the file."],
+  ["Show the result", "A before-and-after report: the score you found and the score now, problem by problem."],
+  ["Sell a care plan", "We check the site every 10 minutes and warn you before an outage or an expiring certificate costs them customers."],
+  ["Get paid directly", "Invoices carry your eSewa, Khalti, bank or Payoneer details. The money goes straight to you."],
+  ["Never forget to follow up", "Each sent email or quote sets a reminder, and your Today page lists who to chase."],
+] as const;
+
 const FAQ = [
   {
     q: "Isn't this just cold email?",
@@ -129,7 +138,21 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </section>
 
         <section className="mx-auto max-w-5xl px-5 py-20">
-          <div className="grid gap-10 md:grid-cols-[1fr_1.4fr]">
+          <h2 className="font-serif text-4xl font-medium tracking-tight">When they say yes</h2>
+          <p className="mt-3 max-w-2xl text-muted">The rest of the job happens in the same place, on one page per client.</p>
+          <ol className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+            {AFTER_YES.map(([title, text], i) => (
+              <li key={title} className="border-t border-strong-border pt-4">
+                <p className="font-mono text-xs text-faint">{String(i + 1).padStart(2, "0")}</p>
+                <h3 className="mt-1 font-medium">{title}</h3>
+                <p className="mt-1.5 text-sm text-muted">{text}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="border-t border-border">
+          <div className="mx-auto grid max-w-5xl gap-10 px-5 py-20 md:grid-cols-[1fr_1.4fr]">
             <h2 className="font-serif text-4xl font-medium tracking-tight">Why not just bid on Upwork?</h2>
             <div className="space-y-4 text-muted">
               <p>
@@ -173,7 +196,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                     ["New leads", `${PLAN_LIMITS.free.leadsPerWeek} a week`, `${PLAN_LIMITS.pro.leadsPerDay} every day`],
                     ["Drafted pitches", `${PLAN_LIMITS.free.pitchesPerWeek} a week`, "As many as you need"],
                     ["Website reports you can share", "Yes", "Yes"],
-                    ["Pipeline and earnings tracking", "Yes", "Yes"],
+                    ["Quotes, invoices and follow-up reminders", "Yes", "Yes"],
+                    ["Client websites live at once", String(PLAN_LIMITS.free.publishedSites), String(PLAN_LIMITS.pro.publishedSites)],
+                    ["Client sites on a care plan", String(PLAN_LIMITS.free.monitors), String(PLAN_LIMITS.pro.monitors)],
                   ].map(([row, free, pro]) => (
                     <tr key={row}>
                       <td className="px-4 py-3 text-muted">{row}</td>

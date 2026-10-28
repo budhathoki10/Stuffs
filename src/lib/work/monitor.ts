@@ -1,4 +1,5 @@
 import tls from "node:tls";
+import type { Monitor } from "@/db/schema";
 import { FetchBlockedError, guardedLookup, normalizeUrl, safeFetch } from "@/lib/audit/safe-fetch";
 
 export type CheckResult = {
@@ -108,4 +109,49 @@ export function summarize(checks: { ok: boolean; responseMs: number | null; chec
 
 export function daysUntil(date: Date, now = new Date()): number {
   return Math.floor((date.getTime() - now.getTime()) / 86_400_000);
+}
+
+type Alert = { subject: string; heading: string; body: string };
+
+/**
+ * Record one check and work out which alerts it triggers. Pure apart from the
+ * timestamps, so the state machine can be tested without the network.
+ */
+export function nextState(m: Monitor, r: CheckResult, now = new Date()) {
+  const host = new URL(m.url).hostname;
+  const alerts: Alert[] = [];
+  const failures = r.ok ? 0 : m.consecutiveFailures + 1;
+  const status = r.ok ? "up" : failures >= DOWN_AFTER_FAILURES ? "down" : m.status === "unknown" ? "unknown" : m.status;
+  let downAlertSentAt = m.downAlertSentAt;
+
+  if (status === "down" && !downAlertSentAt) {
+    alerts.push({ subject: `${host} is down`, heading: `${host} isn't loading`, body: `The last ${failures} checks failed (${r.error ?? "no response"}). Your client may not know yet.` });
+    downAlertSentAt = now;
+  }
+  if (r.ok && downAlertSentAt) {
+    alerts.push({ subject: `${host} is back up`, heading: `${host} is back`, body: `The site is answering again${r.responseMs ? ` (${(r.responseMs / 1000).toFixed(1)}s)` : ""}.` });
+    downAlertSentAt = null;
+  }
+
+  const sslExpiresAt = r.sslExpiresAt ?? m.sslExpiresAt;
+  let sslAlertedFor = m.sslAlertedFor;
+  if (sslExpiresAt && daysUntil(sslExpiresAt, now) <= SSL_WARNING_DAYS && sslAlertedFor?.getTime() !== sslExpiresAt.getTime()) {
+    const days = daysUntil(sslExpiresAt, now);
+    alerts.push({
+      subject: `HTTPS certificate for ${host} ${days < 0 ? "has expired" : `expires in ${days} days`}`,
+      heading: `${host}'s security certificate ${days < 0 ? "has expired" : "is about to expire"}`,
+      body: `When it expires, browsers show visitors a full-page security warning. Renew it ${days < 0 ? "now" : `before ${sslExpiresAt.toDateString()}`}.`,
+    });
+    sslAlertedFor = sslExpiresAt;
+  }
+
+  return {
+    update: { status, consecutiveFailures: failures, lastCheckedAt: now, lastResponseMs: r.responseMs, sslExpiresAt, sslAlertedFor, downAlertSentAt },
+    alerts,
+  };
+}
+
+/** "180 ms", "2.4s" */
+export function formatResponse(ms: number): string {
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)}s`;
 }

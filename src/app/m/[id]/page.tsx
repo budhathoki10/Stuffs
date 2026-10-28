@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ClientPage } from "@/components/workspace/client-page";
 import { Badge, Eyebrow } from "@/components/ui";
 import { monitorReport } from "@/lib/services/monitors";
-import { daysUntil } from "@/lib/work/monitor";
+import { daysUntil, formatResponse } from "@/lib/work/monitor";
 
 export const metadata: Metadata = { title: "Website health report", robots: { index: false } };
 
@@ -47,7 +47,7 @@ export default async function MonitorReport({ params }: PageProps<"/m/[id]">) {
         <div className="py-5 sm:px-5">
           <dt className="text-[13px] text-muted">Average response</dt>
           <dd className="mt-1 font-mono text-3xl tabular-nums">
-            {summary.avgResponseMs === null ? "No data" : `${(summary.avgResponseMs / 1000).toFixed(2)}s`}
+            {summary.avgResponseMs === null ? "No data" : formatResponse(summary.avgResponseMs)}
           </dd>
           <dd className="mt-1 text-xs text-muted">Under 1s is good</dd>
         </div>

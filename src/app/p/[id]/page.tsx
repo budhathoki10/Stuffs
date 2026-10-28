@@ -73,7 +73,7 @@ export default async function ComparisonPage({ params }: PageProps<"/p/[id]">) {
               <p className="font-medium">{state === "todo" ? (PROBLEM_SHORT[check.id] ?? check.label) : check.label}</p>
               <p className="mt-0.5 text-sm text-muted">{check.detail}</p>
             </div>
-            {state === "fixed" ? <Badge tone="good">Fixed</Badge> : state === "todo" ? <Badge tone="warn">Still to do</Badge> : <Badge>Passing</Badge>}
+            {state === "fixed" ? <Badge tone="good">{before ? "Fixed" : "Done"}</Badge> : state === "todo" ? <Badge tone="warn">Still to do</Badge> : <Badge>Passing</Badge>}
           </li>
         ))}
       </ol>

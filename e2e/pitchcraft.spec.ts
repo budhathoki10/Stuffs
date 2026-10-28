@@ -75,7 +75,7 @@ test("freelancer signs up, gets leads, pitches, and tracks a win", async ({ page
   await page.getByLabel("Status").selectOption("won");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.locator("p[role=alert]")).toContainText("Enter what the project is worth");
-  await page.getByLabel("Project value in USD").fill("750");
+  await page.getByLabel("Project value").fill("750");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Saved. $750 added to your earnings.")).toBeVisible();
 
@@ -99,8 +99,15 @@ test("cron endpoint requires the secret", async ({ request }) => {
   expect((await request.get("/api/cron/daily-leads", { headers: { authorization: "Bearer wrong" } })).status()).toBe(401);
   const res = await request.get("/api/cron/daily-leads", { headers: { authorization: "Bearer e2e-cron-secret" } });
   expect(res.status()).toBe(200);
-  // The only user already received this week's free leads.
-  expect(await res.json()).toMatchObject({ users: 1, delivered: 0, failed: 0 });
+  // Every free user so far has already received this week's leads.
+  const body = await res.json();
+  expect(body).toMatchObject({ delivered: 0, failed: 0 });
+  expect(body.users).toBeGreaterThan(0);
+  expect(typeof body.followUpEmails).toBe("number");
+
+  expect((await request.get("/api/cron/monitors")).status()).toBe(401);
+  const monitors = await request.get("/api/cron/monitors", { headers: { authorization: "Bearer e2e-cron-secret" } });
+  expect(await monitors.json()).toMatchObject({ failed: 0 });
 });
 
 test("a signed Paddle webhook upgrades the account to Pro", async ({ page, request }) => {

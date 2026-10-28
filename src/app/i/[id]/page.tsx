@@ -99,7 +99,7 @@ export default async function InvoicePage({ params }: PageProps<"/i/[id]">) {
                 {lines.map(([label, value]) => (
                   <div key={label} className="contents">
                     <dt className="text-muted">{label}</dt>
-                    <dd className="break-all font-mono">{value}</dd>
+                    <dd className={`break-all ${/\d{4}/.test(value) ? "font-mono" : ""}`}>{value}</dd>
                   </div>
                 ))}
                 {details.other && (

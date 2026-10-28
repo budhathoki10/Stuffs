@@ -3,7 +3,7 @@ export function formatMoney(minor: number, currency = "USD"): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
-    minimumFractionDigits: 0,
+    minimumFractionDigits: minor % 100 === 0 ? 0 : 2,
     maximumFractionDigits: minor % 100 === 0 ? 0 : 2,
   }).format(minor / 100);
 }
