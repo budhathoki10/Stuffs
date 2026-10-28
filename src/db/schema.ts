@@ -110,6 +110,9 @@ export const leads = pgTable(
     wonAmountCents: integer("won_amount_cents"),
     notes: text("notes"),
     deliveredOn: date("delivered_on", { mode: "string" }).notNull(),
+    // When name/address/phone/website/location were last fetched from the source.
+    // Google only allows caching Places content for 30 days, so Google leads are refreshed before then.
+    detailsFetchedAt: timestamp("details_fetched_at", { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

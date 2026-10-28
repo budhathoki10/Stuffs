@@ -7,6 +7,7 @@ import { LeadPitch, LeadStatusForm } from "@/components/lead-actions";
 import { Eyebrow } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import type { LeadStatus } from "@/lib/leads/status";
+import { needsRefresh, refreshGoogleLead } from "@/lib/services/google-refresh";
 import { getLeadWithAudit, latestPitch } from "@/lib/services/leads";
 
 export const metadata: Metadata = { title: "Lead" };
@@ -15,8 +16,17 @@ export default async function LeadPage({ params }: PageProps<"/app/leads/[id]">)
   const user = await requireUser();
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
-  const row = await getLeadWithAudit(user.id, id);
+  let row = await getLeadWithAudit(user.id, id);
   if (!row) notFound();
+  if (needsRefresh(row.lead) && process.env.GOOGLE_MAPS_API_KEY) {
+    try {
+      await refreshGoogleLead(row.lead);
+      row = (await getLeadWithAudit(user.id, id)) ?? row;
+    } catch (err) {
+      // Showing slightly old details beats failing the page; the daily job retries.
+      console.error(`Refreshing Google lead ${id} failed`, err);
+    }
+  }
   const { lead, audit } = row;
   const pitch = await latestPitch(user.id, lead.id);
 
@@ -128,6 +138,7 @@ export default async function LeadPage({ params }: PageProps<"/app/leads/[id]">)
                 </div>
               )}
             </dl>
+            {lead.source === "google" && <p className="mt-3 text-xs text-faint">Business details from Google Maps</p>}
           </section>
           <section className="border-t border-border pt-8">
             <Eyebrow>Where it stands</Eyebrow>

@@ -38,8 +38,9 @@ export default function PrivacyPage() {
 
       <h2>Business data</h2>
       <p>
-        Leads are public business listings from OpenStreetMap (© OpenStreetMap contributors) plus contact details the
-        business publishes on its own website. If you represent a business and want it excluded, email us.
+        Leads are public business listings from Google Maps or OpenStreetMap (© OpenStreetMap contributors), plus
+        contact details the business publishes on its own website. Details from Google are refreshed at least every 30
+        days. If you represent a business and want it excluded, email us.
       </p>
 
       <h2>Who processes data for us</h2>
@@ -47,7 +48,10 @@ export default function PrivacyPage() {
         <li>Hosting and database providers, to run the app.</li>
         <li>Anthropic, to draft pitches from the business details and check results (not used to train their models).</li>
         <li>Google PageSpeed Insights, which loads the public website being checked.</li>
-        <li>OpenStreetMap services (Nominatim, Overpass), which receive your target city and business type.</li>
+        <li>
+          Google Maps Platform (Places API) or OpenStreetMap services (Nominatim, Overpass), which receive your target
+          city and business type.
+        </li>
         <li>Resend, to send account emails such as password resets.</li>
         <li>Paddle and Khalti, to take payments.</li>
       </ul>

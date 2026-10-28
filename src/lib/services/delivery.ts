@@ -58,22 +58,27 @@ export async function deliverLeads(user: User, now = new Date()): Promise<Delive
   );
   if (remaining <= 0) return { delivered: 0, reason: "limit_reached" };
 
-  const businesses = await leadProvider().findBusinesses({
-    niche: search.niche,
-    lat: search.lat,
-    lon: search.lon,
-    radiusKm: search.radiusKm,
-  });
   const existing = await db
     .select({ source: schema.leads.source, sourceId: schema.leads.sourceId })
     .from(schema.leads)
     .where(eq(schema.leads.userId, user.id));
   const seen = new Set(existing.map((l) => `${l.source}:${l.sourceId}`));
+  const seenIds = new Set(existing.map((l) => l.sourceId));
+
+  // Audit a pool a bit larger than needed, then keep the best opportunities.
+  const poolSize = Math.min(remaining * 3, 15);
+  const businesses = await leadProvider().findBusinesses({
+    niche: search.niche,
+    lat: search.lat,
+    lon: search.lon,
+    radiusKm: search.radiusKm,
+    want: poolSize,
+    isKnown: (id) => seenIds.has(id),
+  });
   const fresh = businesses.filter((b) => !seen.has(`${b.source}:${b.sourceId}`));
   if (fresh.length === 0) return { delivered: 0, reason: "no_new_businesses" };
 
-  // Audit a pool a bit larger than needed, then keep the best opportunities.
-  const pool = fresh.slice(0, Math.min(fresh.length, remaining * 3, 15));
+  const pool = fresh.slice(0, poolSize);
   const skill = isSkill(user.skill) ? user.skill : "web_dev";
   const audited = await mapLimit(pool, 4, async (business: Business) => {
     let audit: AuditResult | null = null;
