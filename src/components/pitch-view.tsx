@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "./ui";
 
-function gmailLink(to: string | null | undefined, subject: string, body: string) {
+export function gmailLink(to: string | null | undefined, subject: string, body: string) {
   const url = new URL("https://mail.google.com/mail/");
   url.searchParams.set("view", "cm");
   url.searchParams.set("fs", "1");

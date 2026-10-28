@@ -1,5 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
+export { formatMoney } from "./money";
+
 const ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 
 /** Short, unguessable, URL-friendly id (e.g. for public report links). */
@@ -24,6 +26,3 @@ export function appUrl(path = ""): string {
   return `${base}${path}`;
 }
 
-export function formatMoney(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(cents / 100);
-}

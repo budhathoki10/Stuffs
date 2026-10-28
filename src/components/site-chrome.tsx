@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/session";
+import { leadSourceName } from "@/lib/leads";
 import { ButtonLink, Logo } from "./ui";
 
 export async function SiteHeader() {
@@ -48,7 +49,7 @@ export function SiteFooter() {
           <Link href="/refund" className="hover:text-foreground">
             Refunds
           </Link>
-          <span>Map data © OpenStreetMap contributors</span>
+          {leadSourceName() === "osm" && <span>Map data © OpenStreetMap contributors</span>}
         </nav>
       </div>
     </footer>

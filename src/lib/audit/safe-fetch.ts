@@ -63,7 +63,7 @@ function allowPrivate() {
  * DNS lookup that refuses private addresses. It runs at connect time, so a
  * hostname that re-resolves to an internal IP (DNS rebinding) is still blocked.
  */
-const guardedLookup: LookupFunction = (hostname, options, callback) => {
+export const guardedLookup: LookupFunction = (hostname, options, callback) => {
   dns.lookup(hostname, { ...options, all: true }, (err, addresses) => {
     if (err) return callback(err, "", 0);
     const list = addresses as dns.LookupAddress[];

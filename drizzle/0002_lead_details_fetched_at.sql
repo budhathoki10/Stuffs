@@ -1,0 +1,1 @@
+ALTER TABLE "leads" ADD COLUMN "details_fetched_at" timestamp with time zone DEFAULT now() NOT NULL;

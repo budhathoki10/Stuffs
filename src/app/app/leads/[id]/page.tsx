@@ -7,7 +7,10 @@ import { LeadPitch, LeadStatusForm } from "@/components/lead-actions";
 import { Eyebrow } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import type { LeadStatus } from "@/lib/leads/status";
+import { needsRefresh, refreshGoogleLead } from "@/lib/services/google-refresh";
 import { getLeadWithAudit, latestPitch } from "@/lib/services/leads";
+import { quoteForLead } from "@/lib/services/quotes";
+import { siteForLead } from "@/lib/services/sites";
 
 export const metadata: Metadata = { title: "Lead" };
 
@@ -15,23 +18,36 @@ export default async function LeadPage({ params }: PageProps<"/app/leads/[id]">)
   const user = await requireUser();
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
-  const row = await getLeadWithAudit(user.id, id);
+  let row = await getLeadWithAudit(user.id, id);
   if (!row) notFound();
+  if (needsRefresh(row.lead) && process.env.GOOGLE_MAPS_API_KEY) {
+    try {
+      await refreshGoogleLead(row.lead);
+      row = (await getLeadWithAudit(user.id, id)) ?? row;
+    } catch (err) {
+      // Showing slightly old details beats failing the page; the daily job retries.
+      console.error(`Refreshing Google lead ${id} failed`, err);
+    }
+  }
   const { lead, audit } = row;
-  const pitch = await latestPitch(user.id, lead.id);
+  const [pitch, quote, site] = await Promise.all([latestPitch(user.id, lead.id), quoteForLead(user.id, lead.id), siteForLead(user.id, lead.id)]);
+  const base = `/app/leads/${lead.id}`;
+  // One suggestion at a time, following the order the work usually happens in.
+  const next =
+    lead.status === "lost"
+      ? null
+      : !pitch && lead.status === "new"
+        ? { text: "Draft the first email below and send it.", href: null }
+        : !quote
+          ? { text: "Interested? Turn the problems we found into a priced quote.", href: `${base}/quote`, label: "Build the quote" }
+          : quote.status !== "accepted" && lead.status !== "won"
+            ? { text: "Waiting on their answer to your quote.", href: `${base}/quote`, label: "See the quote" }
+            : !site?.published
+              ? { text: "They said yes. Build and publish their new website.", href: `${base}/site`, label: "Open the site builder" }
+              : { text: "Site's live. Send the before-and-after report and your invoice.", href: `${base}/care`, label: "Results and care" };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <Link href="/app" className="text-[13px] text-muted hover:text-foreground">
-          Today&apos;s leads
-        </Link>
-        <span className="mx-2 text-faint">/</span>
-        <span className="text-[13px] text-muted">{lead.category}</span>
-        <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight">{lead.name}</h1>
-        {lead.address && <p className="mt-1 text-sm text-muted">{lead.address}</p>}
-      </div>
-
+    <div>
       <div className="grid gap-10 lg:grid-cols-[1fr_300px]">
         <div className="min-w-0 space-y-12">
           <section>
@@ -73,6 +89,17 @@ export default async function LeadPage({ params }: PageProps<"/app/leads/[id]">)
         </div>
 
         <aside className="space-y-8 lg:border-l lg:border-border lg:pl-8">
+          {next && (
+            <section className="border-l-2 border-ink pl-3">
+              <Eyebrow>Next step</Eyebrow>
+              <p className="mt-1.5 text-sm">{next.text}</p>
+              {next.href && (
+                <Link href={next.href} className="mt-1 inline-block text-sm font-medium underline underline-offset-4">
+                  {next.label}
+                </Link>
+              )}
+            </section>
+          )}
           <section>
             <Eyebrow>Contact</Eyebrow>
             <dl className="mt-3 space-y-3 text-sm">
@@ -128,11 +155,19 @@ export default async function LeadPage({ params }: PageProps<"/app/leads/[id]">)
                 </div>
               )}
             </dl>
+            {lead.source === "google" && <p className="mt-3 text-xs text-faint">Business details from Google Maps</p>}
           </section>
           <section className="border-t border-border pt-8">
             <Eyebrow>Where it stands</Eyebrow>
             <div className="mt-3">
-              <LeadStatusForm leadId={lead.id} status={lead.status as LeadStatus} wonAmount={lead.wonAmountCents} notes={lead.notes} />
+              <LeadStatusForm
+                leadId={lead.id}
+                status={lead.status as LeadStatus}
+                wonAmount={lead.wonAmountCents}
+                currency={lead.currency}
+                followUpOn={lead.followUpOn}
+                notes={lead.notes}
+              />
             </div>
           </section>
         </aside>

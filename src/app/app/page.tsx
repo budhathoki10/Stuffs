@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FindLeadsButton } from "@/components/find-leads-button";
 import { LeadTable } from "@/components/lead-table";
-import { ButtonLink, Eyebrow, FormMessage } from "@/components/ui";
+import { Button, ButtonLink, Eyebrow, FormMessage } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import { NICHES, isNiche } from "@/lib/leads";
 import { today } from "@/lib/plans";
 import { activeSearch } from "@/lib/services/delivery";
+import { followUpAction } from "@/app/actions/work";
+import { formatDay } from "@/lib/dates";
+import { STATUS_LABELS, type LeadStatus } from "@/lib/leads/status";
+import { dueFollowUps } from "@/lib/services/followups";
 import { getStats, listLeads } from "@/lib/services/leads";
 import { formatMoney } from "@/lib/util";
 
@@ -14,11 +18,12 @@ export const metadata: Metadata = { title: "Today" };
 
 export default async function Dashboard({ searchParams }: PageProps<"/app">) {
   const user = await requireUser();
-  const [{ first, verified, reset }, search, stats, rows] = await Promise.all([
+  const [{ first, verified, reset }, search, stats, rows, followUps] = await Promise.all([
     searchParams,
     activeSearch(user.id),
     getStats(user.id),
     listLeads(user.id),
+    dueFollowUps(user.id),
   ]);
   const todays = rows.filter((r) => r.lead.deliveredOn === today());
   const waiting = rows.filter((r) => r.lead.status === "new" && r.lead.deliveredOn !== today()).slice(0, 10);
@@ -28,7 +33,12 @@ export default async function Dashboard({ searchParams }: PageProps<"/app">) {
     { id: "leads", label: "Leads", value: stats.total },
     { id: "pitched", label: "Emailed", value: stats.contacted },
     { id: "replies", label: "Replied", value: stats.replied },
-    { id: "earned", label: "Earned from these", value: formatMoney(stats.earnedCents), money: stats.earnedCents > 0 },
+    {
+      id: "earned",
+      label: "Earned from these",
+      value: stats.earned.length ? stats.earned.map((e) => formatMoney(e.amountMinor, e.currency)).join(" + ") : formatMoney(0),
+      money: stats.earned.length > 0,
+    },
   ];
 
   return (
@@ -64,6 +74,39 @@ export default async function Dashboard({ searchParams }: PageProps<"/app">) {
           </div>
         ))}
       </dl>
+
+      {followUps.length > 0 && (
+        <section aria-labelledby="follow-ups">
+          <h2 id="follow-ups" className="mb-3 font-serif text-2xl font-medium">
+            Follow up today
+          </h2>
+          <ul className="divide-y divide-border rounded-md border border-border bg-surface">
+            {followUps.map((lead) => (
+              <li key={lead.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
+                <div className="min-w-0 flex-1">
+                  <Link href={`/app/leads/${lead.id}`} className="font-medium underline-offset-4 hover:underline">
+                    {lead.name}
+                  </Link>
+                  <p className="text-[13px] text-muted">
+                    {STATUS_LABELS[lead.status as LeadStatus]}
+                    {lead.followUpOn && lead.followUpOn < today() && ` · due ${formatDay(lead.followUpOn)}`}
+                    {lead.email && ` · ${lead.email}`}
+                  </p>
+                </div>
+                <form action={followUpAction} className="flex gap-1">
+                  <input type="hidden" name="leadId" value={lead.id} />
+                  <Button type="submit" name="op" value="done" variant="secondary" className="py-1">
+                    Done
+                  </Button>
+                  <Button type="submit" name="op" value="snooze" variant="ghost" className="py-1">
+                    In 3 days
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section>
         {!search ? (

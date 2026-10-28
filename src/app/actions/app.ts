@@ -8,9 +8,11 @@ import { db, schema } from "@/db";
 import { topIssues } from "@/lib/audit";
 import { requireUser } from "@/lib/auth/session";
 import { leadProvider, NICHES, type NicheId } from "@/lib/leads";
-import { LEAD_STATUSES } from "@/lib/leads/status";
+import { CHASE_STATUSES, LEAD_STATUSES } from "@/lib/leads/status";
 import { generatePitch } from "@/lib/pitch";
-import { limitsFor, weekStart } from "@/lib/plans";
+import { addDays } from "@/lib/dates";
+import { limitsFor, today, weekStart } from "@/lib/plans";
+import { CURRENCIES } from "@/lib/work/types";
 import { deliverLeads } from "@/lib/services/delivery";
 import { getAudit } from "@/lib/services/audits";
 import { isSkill, SKILLS, type SkillId } from "@/lib/skills";
@@ -145,13 +147,23 @@ const LeadUpdateSchema = z.object({
     .transform((v) => (v ? Math.round(Number(v.replace(/[^0-9.]/g, "")) * 100) : null))
     .refine((v) => v === null || (Number.isFinite(v) && v >= 0 && v < 1e10), "Enter a valid amount"),
   notes: z.string().max(2000).optional(),
+  currency: z.enum(CURRENCIES).optional(),
+  followUpOn: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a follow-up date")]).optional(),
 });
+
+/** Chasing only makes sense while a lead is in play; emailing someone starts a three-day timer. */
+function followUpFor(lead: { status: string; followUpOn: string | null }, status: string, given: string | undefined): string | null {
+  if (!(CHASE_STATUSES as readonly string[]).includes(status)) return null;
+  if (given !== undefined) return given || null;
+  if (lead.status === "new" && status === "sent") return addDays(today(), 3);
+  return lead.followUpOn;
+}
 
 export async function updateLead(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const parsed = LeadUpdateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { leadId, status, wonAmount, notes } = parsed.data;
+  const { leadId, status, wonAmount, notes, currency, followUpOn } = parsed.data;
   if (status === "won" && !wonAmount) return { error: "Enter what the project is worth so it counts toward your earnings." };
   const lead = await ownedLead(user.id, leadId);
   if (!lead) return { error: "Lead not found." };
@@ -160,12 +172,16 @@ export async function updateLead(_: FormState, formData: FormData): Promise<Form
     .set({
       status,
       wonAmountCents: status === "won" ? wonAmount : null,
+      currency: status === "won" && currency ? currency : lead.currency,
       notes: notes ?? lead.notes,
+      followUpOn: followUpFor(lead, status, followUpOn),
       updatedAt: new Date(),
     })
     .where(eq(schema.leads.id, lead.id));
   revalidatePath("/app", "layout");
-  return { success: status === "won" && wonAmount ? `Saved. ${formatMoney(wonAmount)} added to your earnings.` : "Saved." };
+  return {
+    success: status === "won" && wonAmount ? `Saved. ${formatMoney(wonAmount, currency ?? lead.currency)} added to your earnings.` : "Saved.",
+  };
 }
 
 /** Quick status change from the pipeline board (no amount needed except for "won"). */
@@ -173,6 +189,9 @@ export async function markSent(formData: FormData) {
   const user = await requireUser();
   const lead = await ownedLead(user.id, String(formData.get("leadId")));
   if (!lead || lead.status !== "new") return;
-  await db.update(schema.leads).set({ status: "sent", updatedAt: new Date() }).where(eq(schema.leads.id, lead.id));
+  await db
+    .update(schema.leads)
+    .set({ status: "sent", followUpOn: addDays(today(), 3), updatedAt: new Date() })
+    .where(eq(schema.leads.id, lead.id));
   revalidatePath("/app", "layout");
 }

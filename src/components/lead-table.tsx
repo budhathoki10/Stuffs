@@ -41,6 +41,9 @@ export function LeadTable({ rows, label }: { rows: LeadRow[]; label: string }) {
           ))}
         </tbody>
       </table>
+      {rows.some((r) => r.lead.source === "google") && (
+        <p className="border-t border-border px-4 py-2 text-xs text-faint">Business details from Google Maps</p>
+      )}
     </div>
   );
 }

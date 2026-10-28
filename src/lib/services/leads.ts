@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { topIssues } from "@/lib/audit/analyze";
 import { PROBLEM_SHORT } from "@/lib/audit/problems";
@@ -58,9 +58,26 @@ export async function getStats(userId: string) {
       contacted: sql<number>`count(*) filter (where ${schema.leads.status} <> 'new')::int`,
       replied: sql<number>`count(*) filter (where ${schema.leads.status} in ('replied','call','won'))::int`,
       won: sql<number>`count(*) filter (where ${schema.leads.status} = 'won')::int`,
-      earnedCents: sql<number>`coalesce(sum(${schema.leads.wonAmountCents}) filter (where ${schema.leads.status} = 'won'), 0)::bigint`,
     })
     .from(schema.leads)
     .where(eq(schema.leads.userId, userId));
-  return { ...row, earnedCents: Number(row.earnedCents) };
+  // Projects can be priced in different currencies, so earnings are totalled per currency.
+  const earned = await db
+    .select({ currency: schema.leads.currency, amountMinor: sql<number>`sum(${schema.leads.wonAmountCents})::bigint` })
+    .from(schema.leads)
+    .where(and(eq(schema.leads.userId, userId), eq(schema.leads.status, "won"), isNotNull(schema.leads.wonAmountCents)))
+    .groupBy(schema.leads.currency)
+    .orderBy(schema.leads.currency);
+  return { ...row, earned: earned.map((e) => ({ currency: e.currency, amountMinor: Number(e.amountMinor) })) };
+}
+
+/** The lead, only if it belongs to this user. Every workspace action goes through this. */
+export async function ownedLead(userId: string, leadId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(leadId)) return null;
+  const [lead] = await db
+    .select()
+    .from(schema.leads)
+    .where(and(eq(schema.leads.id, leadId), eq(schema.leads.userId, userId)))
+    .limit(1);
+  return lead ?? null;
 }

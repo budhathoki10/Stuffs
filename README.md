@@ -6,15 +6,25 @@ The market research behind the idea is in [`research/consumer-earning-app-resear
 
 ![Home page](docs/screenshots/desktop-landing.png)
 
-Screenshots of the [dashboard](docs/screenshots/desktop-dashboard.png), a [lead](docs/screenshots/desktop-lead.png) and the [home page on a phone](docs/screenshots/mobile-landing.png) are in `docs/screenshots`.
+Screenshots of the [dashboard](docs/screenshots/desktop-dashboard.png), a [lead](docs/screenshots/desktop-lead.png) and the [home page on a phone](docs/screenshots/mobile-landing.png) are in `docs/screenshots`, along with the client work: [quote](docs/screenshots/desktop-quote.png) and [what the client sees](docs/screenshots/desktop-client-quote.png), [site builder](docs/screenshots/desktop-site-builder.png) and [the finished site](docs/screenshots/desktop-client-site.png), [results and care plan](docs/screenshots/desktop-care.png), [before-and-after report](docs/screenshots/desktop-client-before-after.png), [invoice](docs/screenshots/desktop-client-invoice.png) and [clients](docs/screenshots/desktop-clients.png).
 
 ## How it works
 
 1. A freelancer picks a skill, a type of business and a city.
-2. Every morning a cron job pulls matching businesses from OpenStreetMap and fetches each website. It runs 13 checks (HTTPS, mobile viewport, response time, title, description, contact links, booking, footer year and so on), plus Google PageSpeed when a key is set.
+2. Every morning a cron job pulls matching businesses from Google Maps (or OpenStreetMap, if no Google key is set) and fetches each website. It runs 13 checks (HTTPS, mobile viewport, response time, title, description, contact links, booking, footer year and so on), plus Google PageSpeed when a key is set.
 3. The businesses are ranked for that freelancer's skill. A web designer sees businesses with no website first. An SEO freelancer sees sites Google can barely read.
 4. For each lead the freelancer can draft an email. Claude writes it from the audit findings; without an API key, a hand-written template per finding does the job. The email links to a public report the owner can open.
-5. The freelancer sends it from Gmail or their own mail app and tracks the lead through a pipeline. A won project's value adds to the "earned" figure on the dashboard.
+5. The freelancer sends it from Gmail or their own mail app and tracks the lead through a pipeline. Marking a lead as emailed sets a follow-up reminder for three days later; the Today page lists who to chase, and the daily job emails a digest.
+
+### After the client says yes
+
+Each lead has a workspace with five tabs, so the freelancer does the actual work in the app:
+
+- **Quote.** Built from the audit: one priced line per problem (or a new site plus hosting when there's no website), at Kathmandu rates for NPR and typical rates elsewhere. The freelancer edits it and sends a link (`/q/:id`). The client accepts by typing their name; the lead becomes won with the quote's total, and the freelancer gets an email.
+- **Website.** A one-page site builder with four templates (clinic, restaurant, guesthouse, shop), five colours, services, hours, WhatsApp, a map link and a booking form. It starts filled in from the lead's details and previews live as you type. Publishing puts it at `/s/:slug`, where booking requests are stored and emailed to the business and the freelancer. It can also be downloaded as one HTML file to host anywhere. The generated HTML passes every check in Pitchcraft's own audit.
+- **Results & care.** A before-and-after report (`/p/:id`) compares the audit we pitched with a fresh check of the finished site. A monitor checks the site every 10 minutes and emails the freelancer when it's down (after two failed checks) and when its HTTPS certificate has 14 days left. The client gets a health report at `/m/:id`: uptime, response time, certificate and outages over 30 days. That's the monthly care plan the freelancer sells.
+- **Invoices.** Prefilled from the accepted quote, numbered INV-0001 onwards per freelancer. The public invoice (`/i/:id`) prints cleanly and shows the freelancer's own eSewa, Khalti, bank, Payoneer details and payment QR from Settings. **Pitchcraft never holds or moves the money**; the freelancer marks the invoice paid.
+- **Clients** (`/app/clients`) lists every won client with their site, care plan and what they still owe.
 
 ## Stack
 
@@ -31,7 +41,7 @@ src/
   db/                 Drizzle schema and client
   lib/
     audit/            SSRF-safe fetch, HTML checks, scoring, PageSpeed
-    leads/            OpenStreetMap and mock providers, niches, ranking
+    leads/            Google Places, OpenStreetMap and mock providers, niches, ranking
     pitch/            Claude pitch writer and template fallback
     billing/          Paddle signature checks and cancellation, Khalti client
     services/         database-backed operations
@@ -61,7 +71,8 @@ Every variable is listed in [`.env.example`](.env.example). These matter most:
 | Variable | Needed for |
 |---|---|
 | `DATABASE_URL`, `APP_URL`, `CRON_SECRET` | Always |
-| `OSM_CONTACT_EMAIL` | OpenStreetMap's usage policy asks for a contact address |
+| `GOOGLE_MAPS_API_KEY` | Finding businesses on Google Maps. Without it the app falls back to OpenStreetMap. |
+| `OSM_CONTACT_EMAIL` | Only with OpenStreetMap, whose usage policy asks for a contact address |
 | `ANTHROPIC_API_KEY`, `PITCH_MODEL` | AI-written emails. Defaults to `claude-opus-5-5`, about a cent per draft. `claude-haiku-5-5` costs far less. |
 | `PAGESPEED_API_KEY` | Google's phone speed score. The keyless quota is tiny. |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Password resets and email confirmation |
@@ -75,7 +86,9 @@ Vercel plus Neon or Supabase is the simplest setup.
 
 1. Create the database and run `DATABASE_URL=... npm run db:migrate`.
 2. Import the repo into Vercel and add the variables above. Use the Pro plan, because Hobby doesn't allow commercial use.
-3. `vercel.json` schedules the daily lead job for 01:17 UTC, and Vercel sends `CRON_SECRET` with it automatically.
+3. `vercel.json` schedules two jobs, and Vercel sends `CRON_SECRET` with both:
+   - `/api/cron/daily-leads` at 01:17 UTC: new leads, Google refreshes and follow-up digests.
+   - `/api/cron/monitors` every 10 minutes: checks client sites and sends alerts. Vercel's Hobby plan only runs crons once a day; on Hobby, call this URL from an outside scheduler (cron-job.org, GitHub Actions) with the header `Authorization: Bearer $CRON_SECRET`.
 
 **Paddle.** Nepal isn't on Paddle's blocked list, but confirm with their support before you rely on it. Then:
 1. Create a product with a $19 monthly and a $149 yearly price, and put the price IDs in `NEXT_PUBLIC_PADDLE_PRICE_MONTHLY` and `NEXT_PUBLIC_PADDLE_PRICE_YEARLY`.
@@ -89,6 +102,16 @@ Paddle reviews `/terms`, `/privacy` and `/refund` during approval.
 
 **Resend.** Verify your sending domain, then set `RESEND_API_KEY` and `EMAIL_FROM`.
 
+**Google Maps.**
+1. In Google Cloud Console, create a project and attach a billing account. Google requires a card even for free usage.
+2. Enable **Places API (New)**. The older "Places API" is a different product and won't work.
+3. Under Credentials, create an API key. Restrict it to Places API (New) and keep it server-side. Then set `GOOGLE_MAPS_API_KEY`.
+4. Set a daily quota on the API in Cloud Console, so a bug can't run up a bill.
+
+Cost: searches ask for website and phone, so they're billed at the Enterprise rate, about $35 per 1,000 requests after the first 1,000 free each month. One delivery uses 1 to 3 requests, so a Pro user costs roughly $1 to $3 a month.
+
+Google only allows its business details to be cached for 30 days. The daily job re-fetches Google leads older than 29 days, and so does opening one. Pages that show Google data credit Google Maps.
+
 ## Security notes
 
 - The audit fetcher only reaches public addresses. It checks every redirect, and it checks the resolved IP when it connects, so DNS rebinding can't reach internal services.
@@ -97,6 +120,10 @@ Paddle reviews `/terms`, `/privacy` and `/refund` during approval.
 - Free audits and sample drafts are rate-limited per visitor. Only a hash of the IP is stored.
 - Paddle webhooks are verified with HMAC and a five-minute timestamp window. Khalti payments are confirmed with Khalti's lookup API, and a payment can only be credited once.
 - Deleting an account cancels any Paddle subscription first, then removes every row that belongs to the user.
+- Client websites are rendered by escaping everything the freelancer types, and served with a Content Security Policy that blocks all scripts. Only `http(s)` links make it into a site.
+- Booking forms on client sites have a honeypot field and allow five requests an hour per visitor per site.
+- Quote, invoice and report links use 10-character random ids. They're meant to be shared, so treat them like an unlisted link.
+- Monitors use the same public-address-only fetcher as the audit.
 
 ## Tests
 
@@ -111,7 +138,11 @@ npm run test:all          # all of the above, plus lint and typecheck
 
 ## Known limitations
 
-- OpenStreetMap coverage varies by city, and many listings have no email address. The lead page then suggests calling or using the business's contact form. Google Places would make a good second source.
+- Neither Google nor OpenStreetMap provides email addresses. The audit looks for one on the business's own site; when there isn't one, the lead page suggests calling or using the contact form.
+- Google Text Search returns at most 60 businesses per search. Once a user has seen them all, they need a wider distance or another business type.
 - Email confirmation is a reminder, not a gate. If fake signups become a problem, require `emailVerifiedAt` before delivering leads.
 - Lead delivery runs one user at a time to stay within OpenStreetMap's fair-use policy. With many users it should move to a queue, probably with a paid Overpass instance.
 - The legal pages are a plain-language starting point. Have a lawyer read them before you grow.
+- Published client sites live at `/s/:slug` on Pitchcraft's domain. Custom domains aren't supported yet; for the client's own domain, download the HTML and host it there. The downloaded copy has call, WhatsApp and email buttons instead of the booking form, since the form needs Pitchcraft behind it.
+- The site builder makes one page. Multi-page sites, photos and online payments are out of scope.
+- Monitoring checks that the page answers and the certificate is valid. It doesn't check page content or run from several regions.
