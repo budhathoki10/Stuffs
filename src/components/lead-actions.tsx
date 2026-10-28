@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { generateLeadPitch, updateLead } from "@/app/actions/app";
 import { CHASE_STATUSES, LEAD_STATUSES, STATUS_LABELS, type LeadStatus } from "@/lib/leads/status";
 import { CURRENCIES } from "@/lib/work/types";
-import { PitchView } from "./pitch-view";
+import { EmailComposer } from "./workspace/email-composer";
 import { Button, Field, FormMessage, inputClass } from "./ui";
 import { keepInputOnSubmit } from "./use-keep-input";
 
@@ -21,7 +21,17 @@ export function LeadPitch({
   const pitch = state?.subject && state.body ? { subject: state.subject, body: state.body } : existing;
   return (
     <div className="space-y-4">
-      {pitch && <PitchView key={`${pitch.subject}${pitch.body}`} subject={pitch.subject} body={pitch.body} to={email} />}
+      {pitch && (
+        <EmailComposer
+          key={`${pitch.subject}${pitch.body}`}
+          leadId={leadId}
+          kind="pitch"
+          to={email}
+          subject={pitch.subject}
+          body={pitch.body}
+          note="Goes out as you, via Pitchcraft. Replies come back here."
+        />
+      )}
       <form action={action} className="space-y-2">
         <input type="hidden" name="leadId" value={leadId} />
         <Button type="submit" variant={pitch ? "ghost" : "primary"} disabled={pending} className={pitch ? "px-0!" : ""}>

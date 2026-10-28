@@ -4,11 +4,14 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { AuditSummary, CheckList } from "@/components/audit-report";
 import { LeadPitch, LeadStatusForm } from "@/components/lead-actions";
+import { Conversation } from "@/components/workspace/conversation";
+import { topIssues } from "@/lib/audit";
 import { Eyebrow } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import type { LeadStatus } from "@/lib/leads/status";
 import { needsRefresh, refreshGoogleLead } from "@/lib/services/google-refresh";
 import { getLeadWithAudit, latestPitch } from "@/lib/services/leads";
+import { conversation, markRead } from "@/lib/services/outreach";
 import { quoteForLead } from "@/lib/services/quotes";
 import { siteForLead } from "@/lib/services/sites";
 
@@ -30,13 +33,23 @@ export default async function LeadPage({ params }: PageProps<"/app/leads/[id]">)
     }
   }
   const { lead, audit } = row;
-  const [pitch, quote, site] = await Promise.all([latestPitch(user.id, lead.id), quoteForLead(user.id, lead.id), siteForLead(user.id, lead.id)]);
+  const [pitch, quote, site, messages] = await Promise.all([
+    latestPitch(user.id, lead.id),
+    quoteForLead(user.id, lead.id),
+    siteForLead(user.id, lead.id),
+    conversation(user.id, lead.id),
+  ]);
+  if (messages.some((m) => m.direction === "in" && !m.readAt)) await markRead(user.id, lead.id);
+  const emailed = messages.some((m) => m.direction === "out" && m.status === "sent");
+  const lastIn = messages.findLast((m) => m.direction === "in");
   const base = `/app/leads/${lead.id}`;
   // One suggestion at a time, following the order the work usually happens in.
   const next =
     lead.status === "lost"
       ? null
-      : !pitch && lead.status === "new"
+      : lastIn && messages.at(-1) === lastIn
+        ? { text: `${lead.name} replied. Answer them below.`, href: "#conversation", label: "Read the reply" }
+        : !emailed && lead.status === "new"
         ? { text: "Draft the first email below and send it.", href: null }
         : !quote
           ? { text: "Interested? Turn the problems we found into a priced quote.", href: `${base}/quote`, label: "Build the quote" }
@@ -50,19 +63,36 @@ export default async function LeadPage({ params }: PageProps<"/app/leads/[id]">)
     <div>
       <div className="grid gap-10 lg:grid-cols-[1fr_300px]">
         <div className="min-w-0 space-y-12">
-          <section>
-            <h2 className="font-serif text-2xl font-medium">Your email</h2>
-            {!lead.email && (
-              <p className="mt-2 text-sm text-muted">
-                We couldn&apos;t find an email address for them. Call
-                {lead.phone ? ` ${lead.phone}` : ""} or use the contact form on their
-                {lead.website ? " website" : " Google listing"}, and use this as your script.
-              </p>
-            )}
-            <div className="mt-4">
-              <LeadPitch leadId={lead.id} email={lead.email} existing={pitch ? { subject: pitch.subject, body: pitch.body } : null} />
-            </div>
-          </section>
+          {messages.length > 0 ? (
+            <section id="conversation" className="scroll-mt-6">
+              <h2 className="mb-4 font-serif text-2xl font-medium">Conversation</h2>
+              <Conversation
+                leadId={lead.id}
+                businessName={lead.name}
+                freelancerName={user.name}
+                messages={messages}
+                problemId={lead.website ? (audit ? (topIssues(audit.checks)[0]?.id ?? null) : null) : "website"}
+                optedOut={!!lead.optedOutAt}
+              />
+            </section>
+          ) : (
+            <section id="conversation" className="scroll-mt-6">
+              <h2 className="font-serif text-2xl font-medium">Your email</h2>
+              {lead.optedOutAt ? (
+                <p className="mt-2 text-sm text-muted">{lead.name} asked not to be emailed.</p>
+              ) : !lead.email ? (
+                <p className="mt-2 text-sm text-muted">
+                  We couldn&apos;t find an email address for them. If you find one (on Facebook, or by calling
+                  {lead.phone ? ` ${lead.phone}` : ""}), type it in the To line. Otherwise, use the draft as your phone script.
+                </p>
+              ) : null}
+              {!lead.optedOutAt && (
+                <div className="mt-4">
+                  <LeadPitch leadId={lead.id} email={lead.email} existing={pitch ? { subject: pitch.subject, body: pitch.body } : null} />
+                </div>
+              )}
+            </section>
+          )}
 
           <section>
             <div className="flex flex-wrap items-baseline justify-between gap-3">

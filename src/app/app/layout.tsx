@@ -5,9 +5,11 @@ import { VerifyEmailBanner } from "@/components/auth-forms";
 import { Logo } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import { isPro } from "@/lib/plans";
+import { unreadCount } from "@/lib/services/outreach";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  const unread = await unreadCount(user.id);
   return (
     <>
       <header className="border-b border-border bg-surface">
@@ -15,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/app" aria-label="Your leads" className="py-3">
             <Logo />
           </Link>
-          <AppNav />
+          <AppNav unread={unread} />
           <div className="ml-auto flex items-center gap-4 py-3 text-[13px] sm:ml-0">
             {isPro(user) ? (
               <span className="font-medium">Pro</span>

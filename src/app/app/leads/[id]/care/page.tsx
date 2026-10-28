@@ -86,7 +86,8 @@ export default async function CareTab({ params }: PageProps<"/app/leads/[id]/car
               url={appUrl(`/p/${comparison.id}`)}
               to={lead.email}
               subject={`${lead.name}: before and after`}
-              body={`Hi,\n\nHere's how the website scores now compared with before the work.`}
+              body={`Hi,\n\nHere's how the website scores now compared with before the work:`}
+              email={{ leadId: lead.id, kind: "report", signoff: `Thanks,\n${user.name}` }}
             />
           </div>
         )}
@@ -168,7 +169,8 @@ export default async function CareTab({ params }: PageProps<"/app/leads/[id]/car
                 url={appUrl(`/m/${monitor.id}`)}
                 to={lead.email}
                 subject={`${lead.name}: website health report`}
-                body={`Hi,\n\nHere's this month's report for your website: uptime, speed and security.`}
+                body={`Hi,\n\nHere's this month's report for your website: uptime, speed and security. You can open it any time:`}
+                email={{ leadId: lead.id, kind: "report", signoff: `Thanks,\n${user.name}` }}
               />
             </div>
           </div>

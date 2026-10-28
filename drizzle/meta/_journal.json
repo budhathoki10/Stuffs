@@ -29,6 +29,13 @@
       "when": 1793175850305,
       "tag": "0003_client_work",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793191849299,
+      "tag": "0004_in_app_email",
+      "breakpoints": true
     }
   ]
 }

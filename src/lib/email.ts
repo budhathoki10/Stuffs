@@ -1,35 +1,58 @@
 import "server-only";
 import { appendFile } from "node:fs/promises";
 
-export type Email = { to: string; subject: string; text: string; html: string };
+export type Email = {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  /** Defaults to EMAIL_FROM. */
+  from?: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
+};
+
+/** Resend's API, overridable so tests can point at a fake. */
+export const resendApiBase = () => (process.env.RESEND_API_BASE ?? "https://api.resend.com").replace(/\/$/, "");
 
 /**
- * Send a transactional email through Resend (https://resend.com/docs/api-reference/emails/send-email).
- * Without RESEND_API_KEY, emails are appended to EMAIL_DEV_OUTBOX (JSON lines) for local
- * development and tests, so reset links can still be followed.
+ * Send an email through Resend (https://resend.com/docs/api-reference/emails/send-email) and return
+ * its id. Without RESEND_API_KEY, emails are appended to EMAIL_DEV_OUTBOX (JSON lines) for local
+ * development and tests, so links in them can still be followed.
  */
-export async function sendEmail(email: Email): Promise<void> {
+export async function sendEmail(email: Email): Promise<{ id: string | null }> {
+  const from = email.from ?? process.env.EMAIL_FROM ?? "Pitchcraft <onboarding@resend.dev>";
   const key = process.env.RESEND_API_KEY;
   if (key) {
-    const res = await fetch("https://api.resend.com/emails", {
+    const res = await fetch(`${resendApiBase()}/emails`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: process.env.EMAIL_FROM ?? "Pitchcraft <onboarding@resend.dev>", ...email }),
+      body: JSON.stringify({
+        from,
+        to: email.to,
+        subject: email.subject,
+        text: email.text,
+        html: email.html,
+        reply_to: email.replyTo,
+        headers: email.headers,
+      }),
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) throw new Error(`Resend failed (${res.status}): ${await res.text().catch(() => "")}`);
-    return;
+    const body = (await res.json().catch(() => ({}))) as { id?: string };
+    return { id: body.id ?? null };
   }
   const outbox = process.env.EMAIL_DEV_OUTBOX;
   if (outbox) {
-    await appendFile(outbox, `${JSON.stringify({ ...email, sentAt: new Date().toISOString() })}\n`);
-    return;
+    await appendFile(outbox, `${JSON.stringify({ ...email, from, sentAt: new Date().toISOString() })}\n`);
+    return { id: null };
   }
   if (process.env.NODE_ENV === "production") {
     console.warn(`Email not sent (RESEND_API_KEY is not set): "${email.subject}"`);
   } else {
-    console.info(`[dev email] To: ${email.to}\nSubject: ${email.subject}\n\n${email.text}`);
+    console.info(`[dev email] From: ${from}\nTo: ${email.to}\nSubject: ${email.subject}\n\n${email.text}`);
   }
+  return { id: null };
 }
 
 function layout(heading: string, intro: string, buttonLabel: string, link: string, outro: string) {
