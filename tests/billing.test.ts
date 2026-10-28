@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { initiateKhaltiPayment, lookupKhaltiPayment } from "@/lib/billing/khalti";
-import { interpretPaddleEvent, verifyPaddleSignature } from "@/lib/billing/paddle";
+import { cancelPaddleSubscription, interpretPaddleEvent, verifyPaddleSignature } from "@/lib/billing/paddle";
 
 const SECRET = "pdl_ntfset_test_secret";
 const body = JSON.stringify({ event_type: "transaction.completed", data: { id: "txn_1" } });
@@ -109,5 +109,38 @@ describe("Khalti client", () => {
 
   it("requires a secret key", async () => {
     await expect(lookupKhaltiPayment("px1")).rejects.toThrow("KHALTI_SECRET_KEY");
+  });
+});
+
+describe("cancelPaddleSubscription", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.PADDLE_API_KEY;
+  });
+
+  it("cancels immediately through the sandbox API", async () => {
+    process.env.PADDLE_API_KEY = "pdl_sdbx_key";
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await cancelPaddleSubscription("sub_123");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://sandbox-api.paddle.com/subscriptions/sub_123/cancel");
+    expect(init.headers.Authorization).toBe("Bearer pdl_sdbx_key");
+    expect(JSON.parse(init.body)).toEqual({ effective_from: "immediately" });
+  });
+
+  it("treats an already-canceled subscription as done", async () => {
+    process.env.PADDLE_API_KEY = "pdl_sdbx_key";
+    const body = JSON.stringify({ error: { code: "subscription_update_when_canceled", detail: "already canceled" } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body, { status: 400 })));
+    await expect(cancelPaddleSubscription("sub_123")).resolves.toBeUndefined();
+  });
+
+  it("fails loudly on other errors or a missing key", async () => {
+    await expect(cancelPaddleSubscription("sub_123")).rejects.toThrow("PADDLE_API_KEY");
+    process.env.PADDLE_API_KEY = "pdl_sdbx_key";
+    const body = JSON.stringify({ error: { code: "forbidden", detail: "Invalid API key" } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body, { status: 403 })));
+    await expect(cancelPaddleSubscription("sub_123")).rejects.toThrow("Invalid API key");
   });
 });

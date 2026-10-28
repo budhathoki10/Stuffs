@@ -16,6 +16,7 @@ import type { AuditCheck, AuditMetrics } from "@/lib/audit/types";
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
   skill: text("skill").notNull().default("web_dev"),
@@ -35,6 +36,23 @@ export const sessions = pgTable("sessions", {
     .references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
+
+/** One-time tokens sent by email (password reset, email verification). */
+export const authTokens = pgTable(
+  "auth_tokens",
+  {
+    // SHA-256 of the emailed token, like sessions.
+    id: text("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: text("purpose").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("auth_tokens_user_purpose_idx").on(t.userId, t.purpose, t.createdAt)],
+);
 
 export const searches = pgTable("searches", {
   id: uuid("id").primaryKey().defaultRandom(),

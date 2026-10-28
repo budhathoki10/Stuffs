@@ -35,7 +35,18 @@ export function SiteFooter() {
     <footer className="mt-auto border-t border-border">
       <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-muted sm:flex-row sm:justify-between">
         <span>© {new Date().getFullYear()} Pitchcraft. Find clients without paying platform fees.</span>
-        <span>Business data © OpenStreetMap contributors</span>
+        <nav aria-label="Legal" className="flex flex-wrap gap-x-4 gap-y-1">
+          <Link href="/terms" className="hover:text-foreground">
+            Terms
+          </Link>
+          <Link href="/privacy" className="hover:text-foreground">
+            Privacy
+          </Link>
+          <Link href="/refund" className="hover:text-foreground">
+            Refunds
+          </Link>
+          <span>Business data © OpenStreetMap contributors</span>
+        </nav>
       </div>
     </footer>
   );

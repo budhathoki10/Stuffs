@@ -1,6 +1,6 @@
 import { AuditForm } from "@/components/audit-form";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { ButtonLink, Card } from "@/components/ui";
+import { ButtonLink, Card, FormMessage } from "@/components/ui";
 import { PLAN_LIMITS, PRICES } from "@/lib/plans";
 
 const STEPS = [
@@ -41,11 +41,17 @@ const FAQ = [
   },
 ];
 
-export default function Home() {
+export default async function Home({ searchParams }: PageProps<"/">) {
+  const { deleted } = await searchParams;
   return (
     <>
       <SiteHeader />
       <main className="flex-1">
+        {deleted === "1" && (
+          <div className="mx-auto max-w-6xl px-4 pt-6">
+            <FormMessage success="Your account and data have been deleted. Thanks for trying Pitchcraft." />
+          </div>
+        )}
         <section className="mx-auto max-w-6xl px-4 pb-16 pt-14 sm:pt-20">
           <div className="max-w-3xl">
             <p className="mb-4 inline-flex rounded-full bg-accent-soft px-3 py-1 text-sm font-medium text-accent">

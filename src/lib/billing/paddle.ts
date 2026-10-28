@@ -40,6 +40,26 @@ export type PaddleEvent = {
   };
 };
 
+/**
+ * Cancel a subscription immediately (used when the user deletes their account).
+ * An already-canceled subscription counts as success.
+ */
+export async function cancelPaddleSubscription(subscriptionId: string): Promise<void> {
+  const key = process.env.PADDLE_API_KEY;
+  if (!key) throw new Error("PADDLE_API_KEY is not set");
+  const base = process.env.PADDLE_ENV === "production" ? "https://api.paddle.com" : "https://sandbox-api.paddle.com";
+  const res = await fetch(`${base}/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ effective_from: "immediately" }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (res.ok) return;
+  const body = (await res.json().catch(() => ({}))) as { error?: { code?: string; detail?: string } };
+  if (body.error?.code?.includes("canceled")) return;
+  throw new Error(`Paddle cancel failed (${res.status}): ${body.error?.detail ?? body.error?.code ?? "unknown error"}`);
+}
+
 /** What a Paddle event means for our database, independent of storage. */
 export function interpretPaddleEvent(event: PaddleEvent):
   | { kind: "subscription"; userId: string; subscriptionId: string; proUntil: Date | null }

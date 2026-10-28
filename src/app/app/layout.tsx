@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { logout } from "@/app/actions/auth";
+import { VerifyEmailBanner } from "@/components/auth-forms";
 import { Badge, Logo } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import { isPro } from "@/lib/plans";
@@ -39,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </header>
+      {!user.emailVerifiedAt && <VerifyEmailBanner email={user.email} />}
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
     </>
   );

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FindLeadsButton } from "@/components/find-leads-button";
-import { Badge, ButtonLink, Card, scoreTone } from "@/components/ui";
+import { Badge, ButtonLink, Card, FormMessage, scoreTone } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import { NICHES, isNiche } from "@/lib/leads";
 import { STATUS_LABELS, type LeadStatus } from "@/lib/leads/status";
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Today" };
 
 export default async function Dashboard({ searchParams }: PageProps<"/app">) {
   const user = await requireUser();
-  const [{ first }, search, stats, rows] = await Promise.all([
+  const [{ first, verified, reset }, search, stats, rows] = await Promise.all([
     searchParams,
     activeSearch(user.id),
     getStats(user.id),
@@ -25,6 +25,10 @@ export default async function Dashboard({ searchParams }: PageProps<"/app">) {
 
   return (
     <div className="space-y-8">
+      <FormMessage
+        success={verified === "1" ? "Email confirmed. Thanks!" : reset === "1" ? "Your password was changed. You're logged in." : null}
+        error={verified === "0" ? "That confirmation link has expired or was already used. Use “Resend link” above to get a new one." : null}
+      />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Hi {user.name.split(" ")[0]} 👋</h1>

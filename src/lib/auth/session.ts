@@ -10,7 +10,7 @@ import type { User } from "@/db/schema";
 export const SESSION_COOKIE = "pc_session";
 const SESSION_DAYS = 30;
 
-const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
+export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("base64url");

@@ -1,10 +1,31 @@
 import { createHmac } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
-import { TEST_DATABASE_URL } from "../playwright.config";
+import { EMAIL_OUTBOX, TEST_DATABASE_URL } from "../playwright.config";
 
 const email = `freelancer-${Date.now()}@example.com`;
 const password = "correct-horse-battery";
+const newPassword = "even-better-passphrase";
+
+async function logIn(page: Page, address: string, pass: string) {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(address);
+  await page.getByLabel("Password").fill(pass);
+  await page.getByRole("button", { name: "Log in" }).click();
+}
+
+/** The link in the newest email sent to `to` whose subject contains `subject`. */
+function latestEmailLink(to: string, subject: string): string {
+  const emails = readFileSync(EMAIL_OUTBOX, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as { to: string; subject: string; text: string })
+    .filter((e) => e.to === to && e.subject.includes(subject));
+  const link = emails.at(-1)?.text.match(/https?:\/\/\S+/)?.[0];
+  if (!link) throw new Error(`No "${subject}" email for ${to}`);
+  return link;
+}
 
 test.describe.configure({ mode: "serial" });
 
@@ -41,9 +62,11 @@ test("freelancer signs up, gets leads, pitches, and tracks a win", async ({ page
   await page.getByLabel("Your name").fill("Kushal Budhathoki");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
+  await page.getByLabel("I agree to the Terms").check();
   await page.getByRole("button", { name: "Create free account" }).click();
 
   await expect(page).toHaveURL(/\/app\/settings\?welcome=1/);
+  await expect(page.getByText(`Please confirm your email: we sent a link to ${email}.`)).toBeVisible();
   await page.getByLabel("Type of business").selectOption("dentist");
   await page.getByLabel("City").fill("Kathmandu, Nepal");
   await page.getByLabel("Portfolio or website").fill("kushal.dev");
@@ -121,10 +144,7 @@ test("a signed Paddle webhook upgrades the account to Pro", async ({ page, reque
   const ok = await request.post("/api/webhooks/paddle", { data: body, headers: { "paddle-signature": `ts=${ts};h1=${h1}`, "content-type": "application/json" } });
   expect(ok.status()).toBe(200);
 
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Log in" }).click();
+  await logIn(page, email, password);
   await expect(page).toHaveURL(/\/app$/);
   await page.goto("/app/billing");
   await expect(page.getByTestId("current-plan")).toHaveText("Pro");
@@ -132,12 +152,112 @@ test("a signed Paddle webhook upgrades the account to Pro", async ({ page, reque
 });
 
 test("Khalti callback with an unknown payment is rejected", async ({ page }) => {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Log in" }).click();
+  await logIn(page, email, password);
   await expect(page).toHaveURL(/\/app$/);
   await page.goto("/api/billing/khalti/callback?pidx=forged&status=Completed");
   await expect(page).toHaveURL(/\/app\/billing\?status=failed/);
   await expect(page.locator("p[role=alert]")).toContainText("didn't go through");
+});
+
+test("the emailed link confirms the address and works only once", async ({ page }) => {
+  await logIn(page, email, password);
+  await expect(page.getByText("Please confirm your email")).toBeVisible();
+  const link = latestEmailLink(email, "Confirm your Pitchcraft email");
+
+  await page.goto(link);
+  await expect(page).toHaveURL(/\/app\?verified=1/);
+  await expect(page.locator("p[role=status]")).toHaveText("Email confirmed. Thanks!");
+  await expect(page.getByText("Please confirm your email")).toHaveCount(0);
+
+  await page.goto(link);
+  await expect(page.locator("p[role=alert]")).toContainText("expired or was already used");
+});
+
+test("forgotten password can be reset by email", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("link", { name: "Forgot password?" }).click();
+  await page.getByLabel("Email").fill(email);
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await expect(page.locator("p[role=status]")).toContainText("If an account exists");
+
+  // Unknown emails get the same answer, so accounts can't be discovered this way.
+  await page.goto("/forgot-password");
+  await page.getByLabel("Email").fill("nobody@example.com");
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await expect(page.locator("p[role=status]")).toContainText("If an account exists");
+
+  const link = latestEmailLink(email, "Reset your Pitchcraft password");
+  await page.goto(link);
+  await page.locator("input[name=password]").fill(newPassword);
+  await page.locator("input[name=confirm]").fill("something-else");
+  await page.getByRole("button", { name: "Save new password" }).click();
+  await expect(page.locator("p[role=alert]")).toHaveText("The two passwords don't match");
+
+  // The typed password survives the error, so only the repeat field needs fixing.
+  await expect(page.locator("input[name=password]")).toHaveValue(newPassword);
+  await page.locator("input[name=confirm]").fill(newPassword);
+  await page.getByRole("button", { name: "Save new password" }).click();
+  await expect(page).toHaveURL(/\/app\?reset=1/);
+  await expect(page.locator("p[role=status]")).toContainText("Your password was changed");
+
+  await page.goto(link);
+  await expect(page.getByRole("heading", { name: "This link has expired" })).toBeVisible();
+
+  await page.context().clearCookies();
+  await logIn(page, email, password);
+  await expect(page.locator("p[role=alert]")).toHaveText("Wrong email or password.");
+  await logIn(page, email, newPassword);
+  await expect(page).toHaveURL(/\/app$/);
+});
+
+test("legal pages are reachable from the footer", async ({ page }) => {
+  await page.goto("/");
+  const legal = page.getByRole("navigation", { name: "Legal" });
+  for (const [link, heading] of [
+    ["Terms", "Terms of Service"],
+    ["Privacy", "Privacy Policy"],
+    ["Refunds", "Refund Policy"],
+  ]) {
+    await legal.getByRole("link", { name: link }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(heading);
+  }
+  await expect(page.getByText("14-day money-back guarantee")).toBeVisible();
+});
+
+test("a paying user can't delete the account until the subscription is canceled", async ({ page }) => {
+  await logIn(page, email, newPassword);
+  await expect(page).toHaveURL(/\/app$/);
+  await page.goto("/app/settings");
+  await page.getByLabel("Confirm with your password").fill(newPassword);
+  await page.getByRole("button", { name: "Delete my account" }).click();
+  await expect(page.locator("p[role=alert]")).toContainText("couldn't cancel your subscription");
+});
+
+test("a free user can delete the account and all data", async ({ page }) => {
+  const doomed = `delete-me-${Date.now()}@example.com`;
+  await page.goto("/signup");
+  await page.getByLabel("Your name").fill("Temp User");
+  await page.getByLabel("Email").fill(doomed);
+  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("I agree to the Terms").check();
+  await page.getByRole("button", { name: "Create free account" }).click();
+  await expect(page).toHaveURL(/welcome=1/);
+
+  await page.goto("/app/settings");
+  await page.getByLabel("Confirm with your password").fill("wrong-password");
+  await page.getByRole("button", { name: "Delete my account" }).click();
+  await expect(page.locator("p[role=alert]")).toHaveText("That password isn't right.");
+
+  await page.getByLabel("Confirm with your password").fill(password);
+  await page.getByRole("button", { name: "Delete my account" }).click();
+  await expect(page).toHaveURL(/\/\?deleted=1$/);
+  await expect(page.locator("p[role=status]")).toContainText("Your account and data have been deleted");
+
+  const sql = postgres(TEST_DATABASE_URL, { max: 1 });
+  const rows = await sql`select id from users where email = ${doomed}`;
+  await sql.end();
+  expect(rows).toHaveLength(0);
+
+  await logIn(page, doomed, password);
+  await expect(page.locator("p[role=alert]")).toHaveText("Wrong email or password.");
 });

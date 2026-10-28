@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DeleteAccountForm } from "@/components/auth-forms";
 import { SettingsForm } from "@/components/settings-form";
 import { Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
@@ -29,6 +30,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
           }}
         />
       </Card>
+      {!isWelcome && (
+        <Card className="border-danger/40">
+          <h2 className="mb-2 font-semibold">Delete account</h2>
+          <DeleteAccountForm />
+        </Card>
+      )}
     </div>
   );
 }

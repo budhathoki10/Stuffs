@@ -1,8 +1,12 @@
+import os from "node:os";
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3100;
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? "postgres://pitchcraft:pitchcraft@localhost:5432/pitchcraft_test";
+// Emails are written here instead of being sent, so tests can follow the links.
+export const EMAIL_OUTBOX = path.join(os.tmpdir(), "pitchcraft-e2e-outbox.jsonl");
 
 // The app runs against a separate database with fake businesses and local fixture websites.
 const appEnv = {
@@ -16,6 +20,9 @@ const appEnv = {
   CRON_SECRET: "e2e-cron-secret",
   PADDLE_WEBHOOK_SECRET: "e2e-paddle-secret",
   KHALTI_SECRET_KEY: "",
+  RESEND_API_KEY: "",
+  EMAIL_DEV_OUTBOX: EMAIL_OUTBOX,
+  PADDLE_API_KEY: "",
 };
 
 export default defineConfig({
