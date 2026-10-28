@@ -17,79 +17,73 @@ function mailtoLink(to: string | null | undefined, subject: string, body: string
   return `mailto:${to ? encodeURIComponent(to) : ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-/** Editable pitch with copy and "open in email" shortcuts. */
-export function PitchView({
-  subject: initialSubject,
-  body: initialBody,
-  to,
-  onSent,
-}: {
-  subject: string;
-  body: string;
-  to?: string | null;
-  onSent?: () => void;
-}) {
+/** The drafted email, laid out like a compose window. Edits stay local until it's sent. */
+export function PitchView({ subject: initialSubject, body: initialBody, to }: { subject: string; body: string; to?: string | null }) {
   const [subject, setSubject] = useState(initialSubject);
   const [body, setBody] = useState(initialBody);
   const [copied, setCopied] = useState<string | null>(null);
 
-  async function copy(label: string, text: string) {
+  async function copy() {
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(label);
-      setTimeout(() => setCopied(null), 2000);
+      await navigator.clipboard.writeText(`${subject}\n\n${body}`);
+      setCopied("Copied.");
     } catch {
-      setCopied("Copy failed: select the text and copy it manually");
+      setCopied("Your browser blocked copying. Select the text and copy it by hand.");
     }
+    setTimeout(() => setCopied(null), 2500);
   }
 
   return (
-    <div className="space-y-3">
-      <label className="block space-y-1">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted">Subject</span>
-        <input
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm font-medium"
-          aria-label="Pitch subject"
-        />
-      </label>
-      <label className="block space-y-1">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted">Email</span>
+    <div>
+      <div className="overflow-hidden rounded-md border border-strong-border bg-surface">
+        <div className="grid grid-cols-[4.5rem_1fr] items-center border-b border-border text-sm">
+          <span className="px-3 py-2 text-muted">To</span>
+          <span className="truncate py-2 pr-3">{to ?? <span className="text-faint">No email found</span>}</span>
+        </div>
+        <div className="grid grid-cols-[4.5rem_1fr] items-center border-b border-border text-sm">
+          <label htmlFor="pitch-subject" className="px-3 py-2 text-muted">
+            Subject
+          </label>
+          <input
+            id="pitch-subject"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="w-full bg-transparent py-2 pr-3 font-medium outline-none"
+            aria-label="Pitch subject"
+          />
+        </div>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          rows={Math.min(18, body.split("\n").length + 3)}
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm leading-relaxed"
+          rows={Math.min(18, body.split("\n").length + 2)}
+          className="block w-full resize-y bg-transparent px-3 py-3 text-sm leading-relaxed outline-none"
           aria-label="Pitch body"
         />
-      </label>
-      <div className="flex flex-wrap gap-2">
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <a
           href={gmailLink(to, subject, body)}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={onSent}
-          className="inline-flex items-center rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-strong"
+          className="inline-flex items-center rounded-[5px] bg-ink px-3.5 py-2 text-sm font-medium text-on-ink hover:bg-ink-hover"
         >
           Open in Gmail
         </a>
         <a
           href={mailtoLink(to, subject, body)}
-          onClick={onSent}
-          className="inline-flex items-center rounded-lg border border-border px-4 py-2.5 text-sm font-semibold hover:border-accent"
+          className="inline-flex items-center rounded-[5px] border border-strong-border px-3.5 py-2 text-sm font-medium hover:border-ink"
         >
           Open in email app
         </a>
-        <Button type="button" variant="secondary" onClick={() => copy("Email copied", `${subject}\n\n${body}`)}>
-          Copy
+        <Button type="button" variant="ghost" onClick={copy}>
+          Copy text
         </Button>
+        {copied && (
+          <span role="status" className="text-sm text-muted">
+            {copied}
+          </span>
+        )}
       </div>
-      {copied && (
-        <p role="status" className="text-sm text-accent">
-          {copied}
-        </p>
-      )}
     </div>
   );
 }

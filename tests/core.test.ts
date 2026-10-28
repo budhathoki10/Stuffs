@@ -102,6 +102,7 @@ describe("pitches for every skill", () => {
     expect(buildPitchPrompt(input)).toContain(SKILLS[skill].offer);
     const pitch = templatePitch(input);
     expect(pitch.body).toContain("Asha");
+    expect(pitch.body).toContain(SKILLS[skill].intro);
     expect(pitch.subject.length).toBeLessThanOrEqual(90);
     expect(pitch.body).not.toMatch(/undefined|null/);
   });
@@ -124,7 +125,7 @@ describe("emails", () => {
     expect(v.subject).toBe("Confirm your Pitchcraft email");
     expect(v.text).toContain("https://app.test/verify-email/tok");
     expect(v.html).toContain('href="https://app.test/verify-email/tok"');
-    expect(v.text).toContain("Welcome, Asha!");
+    expect(v.text).toContain("Hi Asha");
 
     const r = resetPasswordMessage("a@b.test", "https://app.test/reset-password/tok");
     expect(r.text).toContain("expires in 1 hour");

@@ -49,8 +49,8 @@ export function verifyEmailMessage(to: string, name: string, link: string): Emai
     to,
     subject: "Confirm your Pitchcraft email",
     ...layout(
-      `Welcome, ${name}!`,
-      "Please confirm your email address so we can send you account and billing notices.",
+      `Hi ${name}, one quick thing`,
+      "Confirm this is your email address so we can send you receipts and password resets.",
       "Confirm my email",
       link,
       "This link expires in 3 days. If you didn't create a Pitchcraft account, you can ignore this email.",

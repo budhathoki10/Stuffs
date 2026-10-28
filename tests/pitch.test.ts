@@ -29,7 +29,7 @@ describe("templatePitch", () => {
     const pitch = templatePitch(base);
     expect(pitch.model).toBe("template");
     expect(pitch.subject).toContain("Riverside Café");
-    expect(pitch.body).toContain("4.2s");
+    expect(pitch.body).toContain("took 4.2 seconds to start loading");
     expect(pitch.body).toContain("https://pitchcraft.app/r/abc123");
     expect(pitch.body.trim().endsWith("https://kushal.dev")).toBe(true);
     expect(pitch.body).toContain("Kushal");

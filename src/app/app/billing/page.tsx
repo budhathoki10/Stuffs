@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { KhaltiButton, PaddleCheckout } from "@/components/billing-buttons";
-import { Card, FormMessage } from "@/components/ui";
+import { FormMessage } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import { isPro, PLAN_LIMITS, PRICES } from "@/lib/plans";
 import { appUrl } from "@/lib/util";
@@ -8,9 +8,9 @@ import { appUrl } from "@/lib/util";
 export const metadata: Metadata = { title: "Billing" };
 
 const MESSAGES: Record<string, { error?: string; success?: string }> = {
-  success: { success: "Payment received. Pro is active. Thank you!" },
-  pending: { success: "Payment is being confirmed. Pro will activate within a few minutes." },
-  failed: { error: "The payment didn't go through. You haven't been charged." },
+  success: { success: "Payment received. You're on Pro." },
+  pending: { success: "Waiting for the payment to confirm. Pro switches on as soon as it does, usually within a few minutes." },
+  failed: { error: "The payment didn't go through, and you haven't been charged." },
 };
 
 export default async function BillingPage({ searchParams }: PageProps<"/app/billing">) {
@@ -20,38 +20,53 @@ export default async function BillingPage({ searchParams }: PageProps<"/app/bill
   const pro = isPro(user);
   const paddleToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
   const paddlePrices = [
-    { label: `Pay $${PRICES.monthlyUsd}/month`, priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_MONTHLY },
-    { label: `Pay $${PRICES.yearlyUsd}/year (save 35%)`, priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_YEARLY },
+    { label: `$${PRICES.monthlyUsd} a month`, priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_MONTHLY },
+    { label: `$${PRICES.yearlyUsd} a year`, priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_YEARLY },
   ].filter((p): p is { label: string; priceId: string } => !!p.priceId);
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <h1 className="text-2xl font-bold">Billing</h1>
-      <FormMessage error={message?.error} success={message?.success} />
-      <Card>
-        <p className="text-sm text-muted">Current plan</p>
-        <p className="text-xl font-semibold" data-testid="current-plan">
-          {pro ? "Pro" : "Free"}
-        </p>
-        {pro && user.proUntil && (
-          <p className="text-sm text-muted">
-            Active until {user.proUntil.toLocaleDateString("en-US", { dateStyle: "long" })}
-          </p>
-        )}
-        {!pro && (
-          <p className="mt-2 text-sm text-muted">
-            Free: {PLAN_LIMITS.free.leadsPerWeek} leads and {PLAN_LIMITS.free.pitchesPerWeek} pitches per week. Pro:{" "}
-            {PLAN_LIMITS.pro.leadsPerDay} leads every day and unlimited pitches.
-          </p>
-        )}
-      </Card>
+    <div className="max-w-3xl">
+      <h1 className="font-serif text-4xl font-medium tracking-tight">Billing</h1>
+      <div className="mt-6">
+        <FormMessage error={message?.error} success={message?.success} />
+      </div>
 
-      <Card>
-        <h2 className="font-semibold">{pro ? "Extend Pro" : "Upgrade to Pro"}</h2>
-        <p className="mb-4 mt-1 text-sm text-muted">One new client pays for years of Pro.</p>
-        <div className="space-y-5">
+      <dl className="mt-6 grid grid-cols-2 border-y border-border py-5 sm:grid-cols-3">
+        <div>
+          <dt className="text-[13px] text-muted">Plan</dt>
+          <dd className="mt-1 text-lg font-medium" data-testid="current-plan">
+            {pro ? "Pro" : "Free"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[13px] text-muted">{pro ? "Paid until" : "Leads"}</dt>
+          <dd className="mt-1 text-lg">
+            {pro && user.proUntil
+              ? user.proUntil.toLocaleDateString("en-US", { dateStyle: "long" })
+              : `${PLAN_LIMITS.free.leadsPerWeek} a week`}
+          </dd>
+        </div>
+        {!pro && (
           <div>
-            <h3 className="mb-2 text-sm font-medium">Card, Apple Pay, Google Pay (worldwide, USD)</h3>
+            <dt className="text-[13px] text-muted">Drafted emails</dt>
+            <dd className="mt-1 text-lg">{PLAN_LIMITS.free.pitchesPerWeek} a week</dd>
+          </div>
+        )}
+      </dl>
+
+      <section className="mt-12">
+        <h2 className="font-serif text-2xl font-medium">{pro ? "Add more time" : "Upgrade to Pro"}</h2>
+        <p className="mt-1.5 text-sm text-muted">
+          {PLAN_LIMITS.pro.leadsPerDay} new leads every day and no limit on drafts. Refunded in full if you ask within 14
+          days.
+        </p>
+
+        <div className="mt-8 divide-y divide-border border-y border-border">
+          <div className="grid gap-4 py-6 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div>
+              <p className="font-medium">Card, Apple Pay or Google Pay</p>
+              <p className="text-sm text-muted">Billed in USD by Paddle. Renews until you cancel.</p>
+            </div>
             {paddleToken && paddlePrices.length > 0 ? (
               <PaddleCheckout
                 clientToken={paddleToken}
@@ -62,15 +77,18 @@ export default async function BillingPage({ searchParams }: PageProps<"/app/bill
                 successUrl={appUrl("/app/billing?status=pending")}
               />
             ) : (
-              <p className="text-sm text-muted">Card payments are not configured yet.</p>
+              <p className="text-sm text-faint">Not set up yet</p>
             )}
           </div>
-          <div>
-            <h3 className="mb-2 text-sm font-medium">Khalti (Nepal, NPR)</h3>
-            <KhaltiButton label={`Pay NPR ${PRICES.monthlyNpr} for 30 days`} />
+          <div className="grid gap-4 py-6 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div>
+              <p className="font-medium">Khalti</p>
+              <p className="text-sm text-muted">For Nepal. NPR {PRICES.monthlyNpr} for 30 days, doesn&apos;t renew on its own.</p>
+            </div>
+            <KhaltiButton label={`Pay NPR ${PRICES.monthlyNpr}`} />
           </div>
         </div>
-      </Card>
+      </section>
     </div>
   );
 }

@@ -14,12 +14,12 @@ import { limitsFor, weekStart } from "@/lib/plans";
 import { deliverLeads } from "@/lib/services/delivery";
 import { getAudit } from "@/lib/services/audits";
 import { isSkill, SKILLS, type SkillId } from "@/lib/skills";
-import { appUrl } from "@/lib/util";
+import { appUrl, formatMoney } from "@/lib/util";
 
 export type FormState = { error?: string; success?: string } | undefined;
 
 const SettingsSchema = z.object({
-  name: z.string().trim().min(1, "Please enter your name").max(80),
+  name: z.string().trim().min(1, "Enter your name").max(80),
   skill: z.enum(Object.keys(SKILLS) as [SkillId, ...SkillId[]]),
   portfolioUrl: z
     .string()
@@ -51,7 +51,7 @@ export async function saveSettings(_: FormState, formData: FormData): Promise<Fo
     try {
       point = await leadProvider().geocode(location);
     } catch {
-      return { error: "We couldn't look up that location right now. Please try again in a minute." };
+      return { error: "We couldn't look up that location right now. Try again in a minute." };
     }
     if (!point) return { error: `We couldn't find "${location}". Try adding the country, like "Pokhara, Nepal".` };
     await db.update(schema.searches).set({ active: false }).where(eq(schema.searches.userId, user.id));
@@ -69,18 +69,18 @@ export async function findLeadsNow(_: FormState): Promise<FormState> {
     result = await deliverLeads(user);
   } catch (err) {
     console.error("Lead delivery failed", err);
-    return { error: "Business search is busy right now. Please try again in a few minutes." };
+    return { error: "The map service didn't answer. Try again in a few minutes." };
   }
   revalidatePath("/app");
   switch (result.reason) {
     case "ok":
-      return { success: `Found ${result.delivered} new lead${result.delivered === 1 ? "" : "s"} for you.` };
+      return { success: `Found ${result.delivered} new lead${result.delivered === 1 ? "" : "s"}.` };
     case "no_search":
-      return { error: "Set your target business type and city in Settings first." };
+      return { error: "Choose a type of business and a city in Settings first." };
     case "limit_reached":
-      return { error: "You've received all your leads for now. New leads arrive tomorrow (or upgrade to Pro for daily leads)." };
+      return { error: "You've had all the leads your plan allows for now. Free accounts get 5 a week, Pro gets 5 every day." };
     case "no_new_businesses":
-      return { error: "No new businesses found nearby. Try a bigger radius or another business type in Settings." };
+      return { error: "Every business we can find nearby is already in your list. Try a wider distance or another type of business in Settings." };
   }
 }
 
@@ -106,7 +106,7 @@ export async function generateLeadPitch(_: PitchState, formData: FormData): Prom
     .from(schema.pitches)
     .where(and(eq(schema.pitches.userId, user.id), gte(schema.pitches.createdAt, new Date(weekStart()))));
   if (n >= limitsFor(user).pitchesPerWeek) {
-    return { error: "You've used this week's free pitches. Upgrade to Pro for unlimited pitches." };
+    return { error: "That's your 10 free drafts for this week. Pro has no limit." };
   }
 
   const audit = lead.auditId ? await getAudit(lead.auditId) : null;
@@ -152,7 +152,7 @@ export async function updateLead(_: FormState, formData: FormData): Promise<Form
   const parsed = LeadUpdateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { leadId, status, wonAmount, notes } = parsed.data;
-  if (status === "won" && !wonAmount) return { error: "Congrats! How much is the project worth? Enter the amount to track your earnings." };
+  if (status === "won" && !wonAmount) return { error: "Enter what the project is worth so it counts toward your earnings." };
   const lead = await ownedLead(user.id, leadId);
   if (!lead) return { error: "Lead not found." };
   await db
@@ -165,7 +165,7 @@ export async function updateLead(_: FormState, formData: FormData): Promise<Form
     })
     .where(eq(schema.leads.id, lead.id));
   revalidatePath("/app", "layout");
-  return { success: status === "won" ? "Marked as won. Nice work!" : "Saved." };
+  return { success: status === "won" && wonAmount ? `Saved. ${formatMoney(wonAmount)} added to your earnings.` : "Saved." };
 }
 
 /** Quick status change from the pipeline board (no amount needed except for "won"). */

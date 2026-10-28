@@ -21,19 +21,19 @@ import { SKILLS, type SkillId } from "@/lib/skills";
 export type AuthState = { error?: string; success?: string } | undefined;
 
 const password = z.string().min(8, "Password must be at least 8 characters").max(200);
-const email = z.email("Please enter a valid email").trim().toLowerCase();
+const email = z.email("Enter a valid email").trim().toLowerCase();
 
 const SignupSchema = z.object({
-  name: z.string().trim().min(1, "Please enter your name").max(80),
+  name: z.string().trim().min(1, "Enter your name").max(80),
   email,
   password,
   skill: z.enum(Object.keys(SKILLS) as [SkillId, ...SkillId[]]).default("web_dev"),
-  terms: z.literal("on", "Please accept the Terms and Privacy Policy to continue"),
+  terms: z.literal("on", "Accept the Terms and Privacy Policy to continue"),
 });
 
 const LoginSchema = z.object({
   email,
-  password: z.string().min(1, "Please enter your password"),
+  password: z.string().min(1, "Enter your password"),
 });
 
 const ResetSchema = z
@@ -98,7 +98,7 @@ export async function deleteAccount(_: AuthState, formData: FormData): Promise<A
     } catch (err) {
       console.error("Paddle cancel before account deletion failed", err);
       return {
-        error: `We couldn't cancel your subscription automatically, so your account wasn't deleted. Please email ${SITE.supportEmail} and we'll do it for you.`,
+        error: `We couldn't cancel your subscription automatically, so your account wasn't deleted. Email ${SITE.supportEmail} and we'll do it for you.`,
       };
     }
   }
@@ -109,7 +109,7 @@ export async function deleteAccount(_: AuthState, formData: FormData): Promise<A
 
 export async function requestPasswordReset(_: AuthState, formData: FormData): Promise<AuthState> {
   const parsed = email.safeParse(formData.get("email"));
-  if (!parsed.success) return { error: "Please enter a valid email" };
+  if (!parsed.success) return { error: "Enter a valid email" };
   const [user] = await db.select().from(schema.users).where(eq(schema.users.email, parsed.data));
   // Same answer whether or not the account exists, so this can't be used to find out who has an account.
   const done = { success: "If an account exists for that email, we've sent a link to reset your password. Check your inbox." };
@@ -118,7 +118,7 @@ export async function requestPasswordReset(_: AuthState, formData: FormData): Pr
     await sendPasswordResetEmail(user);
   } catch (err) {
     console.error("Password reset email failed", err);
-    return { error: "We couldn't send the email right now. Please try again in a few minutes." };
+    return { error: "We couldn't send the email right now. Try again in a few minutes." };
   }
   return done;
 }
@@ -127,7 +127,7 @@ export async function resetPassword(_: AuthState, formData: FormData): Promise<A
   const parsed = ResetSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const userId = await consumeAuthToken(parsed.data.token, "reset_password");
-  if (!userId) return { error: "This reset link has expired or was already used. Please ask for a new one." };
+  if (!userId) return { error: "This reset link has expired or was already used. Ask for a new one." };
 
   await db
     .update(schema.users)
@@ -144,13 +144,13 @@ export async function resendVerification(_: AuthState): Promise<AuthState> {
   const user = await requireUser();
   if (user.emailVerifiedAt) return { success: "Your email is already confirmed." };
   if ((await tokensSentRecently(user.id, "verify_email", VERIFY_RESEND_COOLDOWN_MS)) > 0) {
-    return { error: "We just sent one. Please wait a couple of minutes and check your spam folder." };
+    return { error: "We sent one a minute ago. Give it a couple of minutes and check your spam folder." };
   }
   try {
     await sendVerificationEmail(user);
   } catch (err) {
     console.error("Verification email failed", err);
-    return { error: "We couldn't send the email right now. Please try again later." };
+    return { error: "We couldn't send the email right now. Try again later." };
   }
-  return { success: `Sent! Check ${user.email}.` };
+  return { success: `Sent to ${user.email}.` };
 }

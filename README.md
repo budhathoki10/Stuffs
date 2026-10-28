@@ -1,138 +1,113 @@
 # Pitchcraft
 
-**Find clients without Upwork.** Every day Pitchcraft gives a freelancer 5 real local businesses that need their skill, checks each business's website for problems, and writes a personal pitch built from those problems. The freelancer sends it from their own inbox, wins the client directly and keeps 100% of the money. Pitchcraft earns from a subscription ($19/month, or NPR 999 with Khalti in Nepal).
+Pitchcraft finds local businesses whose websites are losing them customers, audits each site, and drafts a short email a freelancer can send the owner. The freelancer wins the work directly and keeps all of it. Pitchcraft charges a subscription: $19 a month, or NPR 999 for 30 days through Khalti.
 
-The research behind the idea is in [`research/consumer-earning-app-research.md`](research/consumer-earning-app-research.md).
+The market research behind the idea is in [`research/consumer-earning-app-research.md`](research/consumer-earning-app-research.md).
 
-## Features
+## How it works
 
-| Feature | Where |
-|---|---|
-| Free website check on the landing page (no sign-up), with a shareable report link | `src/app/page.tsx`, `src/app/r/[id]` |
-| 13-point website audit: HTTPS, mobile, speed, title, description, contact, booking, outdated footer and more, plus an optional Google PageSpeed score | `src/lib/audit` |
-| AI pitch writer (Claude), with a built-in template when no API key is set | `src/lib/pitch` |
-| Lead finder using OpenStreetMap (free, worldwide), 16 business types, ranked for the freelancer's skill | `src/lib/leads` |
-| Daily lead delivery (cron) and a "Find my leads now" button | `src/lib/services/delivery.ts`, `src/app/api/cron/daily-leads` |
-| Pipeline (New → Pitch sent → Replied → Call → Won) and an "Earned with Pitchcraft" total | `src/app/app` |
-| Free and Pro plans with weekly and daily limits | `src/lib/plans.ts` |
-| Billing: Paddle (USD, worldwide) and Khalti (NPR, Nepal) | `src/lib/billing`, `src/app/api/webhooks/paddle`, `src/app/api/billing/khalti/callback` |
-| Email and password accounts with server-side sessions | `src/lib/auth` |
-| Email confirmation, forgot-password reset (signs out other devices), and account deletion | `src/app/actions/auth.ts`, `src/lib/email.ts` |
-| Terms, Privacy and Refund pages (Paddle needs these to approve you) | `src/app/terms`, `src/app/privacy`, `src/app/refund` |
-
-**Security built in:**
-- Audits are protected against SSRF: private and internal IPs are blocked, including through redirects and DNS rebinding.
-- Anonymous audits and pitches are rate-limited per IP; only a hash of the IP is stored.
-- Paddle webhooks are checked with HMAC signatures.
-- Khalti payments are always confirmed with Khalti's lookup API before Pro is granted, and each payment can be credited only once.
-- Session tokens, reset links and confirmation links are stored hashed. Links expire and work only once.
-- "Forgot password" gives the same answer whether or not an account exists, and is limited to 3 emails per hour.
-- Deleting an account cancels any Paddle subscription first, so nobody is billed after leaving.
+1. A freelancer picks a skill, a type of business and a city.
+2. Every morning a cron job pulls matching businesses from OpenStreetMap and fetches each website. It runs 13 checks (HTTPS, mobile viewport, response time, title, description, contact links, booking, footer year and so on), plus Google PageSpeed when a key is set.
+3. The businesses are ranked for that freelancer's skill. A web designer sees businesses with no website first. An SEO freelancer sees sites Google can barely read.
+4. For each lead the freelancer can draft an email. Claude writes it from the audit findings; without an API key, a hand-written template per finding does the job. The email links to a public report the owner can open.
+5. The freelancer sends it from Gmail or their own mail app and tracks the lead through a pipeline. A won project's value adds to the "earned" figure on the dashboard.
 
 ## Stack
 
-Next.js 16 (App Router, Server Actions) · TypeScript · Tailwind CSS 4 · Postgres + Drizzle ORM · Anthropic SDK · Vitest · Playwright
+Next.js 16 (App Router, server actions), TypeScript, Tailwind 4, Postgres with Drizzle, the Anthropic SDK, Vitest and Playwright.
 
-## Run it locally
+The code is organised like this:
 
-You need Node 20+ and a Postgres database (a local install, Docker, or a free Neon or Supabase project).
+```
+src/
+  app/                pages, server actions (app/actions) and route handlers (app/api)
+    app/              signed-in area: today, pipeline, settings, billing, leads/[id]
+    r/[id]/           public audit report
+  components/         UI
+  db/                 Drizzle schema and client
+  lib/
+    audit/            SSRF-safe fetch, HTML checks, scoring, PageSpeed
+    leads/            OpenStreetMap and mock providers, niches, ranking
+    pitch/            Claude pitch writer and template fallback
+    billing/          Paddle signature checks and cancellation, Khalti client
+    services/         database-backed operations
+    email.ts          Resend sender and templates
+drizzle/              SQL migrations
+tests/                unit tests; tests/integration runs against Postgres
+e2e/                  Playwright tests, fixture websites, fake Khalti
+```
+
+## Running it locally
+
+You need Node 20+ and Postgres.
 
 ```bash
 npm install
-cp .env.example .env          # then edit DATABASE_URL and the other values
+cp .env.example .env   # set DATABASE_URL at minimum
 npm run db:migrate
-npm run dev                   # http://localhost:3000
+npm run dev
 ```
 
-To try the whole flow offline with fake businesses, set `LEADS_PROVIDER=mock` and `AUDIT_ALLOW_PRIVATE_HOSTS=1`, then run `node e2e/fixture-sites/server.mjs` in a second terminal.
+To work offline with fake businesses, set `LEADS_PROVIDER=mock` and `AUDIT_ALLOW_PRIVATE_HOSTS=1`, then run `node e2e/fixture-sites/server.mjs` in a second terminal. Without `RESEND_API_KEY`, emails are printed to the console, so you can follow reset and confirmation links from there.
 
-## Environment variables
+## Configuration
 
-See [`.env.example`](.env.example) for all of them. The important ones:
+Every variable is listed in [`.env.example`](.env.example). These matter most:
 
-| Variable | Required | What it does |
-|---|---|---|
-| `DATABASE_URL` | yes | Postgres connection string |
-| `APP_URL` | yes | Public URL, used in report links and payment return URLs |
-| `CRON_SECRET` | yes | Protects `/api/cron/daily-leads` |
-| `OSM_CONTACT_EMAIL` | yes | OpenStreetMap's usage policy requires a contact address |
-| `ANTHROPIC_API_KEY` | recommended | Enables AI-written pitches. Without it, a decent template is used. |
-| `PITCH_MODEL` | no | Defaults to `claude-opus-5-5` (about $0.01 per pitch). `claude-haiku-5-5` is about 40x cheaper. |
-| `PAGESPEED_API_KEY` | recommended | Free Google key; the keyless quota is tiny |
-| `LEGAL_OPERATOR_NAME`, `SUPPORT_EMAIL`, `LEGAL_COUNTRY` | yes, before launch | Your name and contact details on the Terms, Privacy and Refund pages |
-| `RESEND_API_KEY`, `EMAIL_FROM` | yes, before launch | Sends confirmation and password-reset emails. Without a key, emails are printed to the console in development. |
-| `NEXT_PUBLIC_PADDLE_*`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_API_KEY` | for USD billing | See below |
-| `KHALTI_SECRET_KEY` | for NPR billing | See below |
+| Variable | Needed for |
+|---|---|
+| `DATABASE_URL`, `APP_URL`, `CRON_SECRET` | Always |
+| `OSM_CONTACT_EMAIL` | OpenStreetMap's usage policy asks for a contact address |
+| `ANTHROPIC_API_KEY`, `PITCH_MODEL` | AI-written emails. Defaults to `claude-opus-5-5`, about a cent per draft. `claude-haiku-5-5` costs far less. |
+| `PAGESPEED_API_KEY` | Google's phone speed score. The keyless quota is tiny. |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Password resets and email confirmation |
+| `LEGAL_OPERATOR_NAME`, `SUPPORT_EMAIL`, `LEGAL_COUNTRY` | The Terms, Privacy and Refund pages |
+| `NEXT_PUBLIC_PADDLE_*`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_API_KEY` | Card payments |
+| `KHALTI_SECRET_KEY` | Payments in Nepal |
 
-## Deploy (Vercel + Neon/Supabase)
+## Deploying
 
-1. Create a Postgres database. Run `DATABASE_URL=... npm run db:migrate` once.
-2. Import the repo in Vercel and add the environment variables. Use **Vercel Pro**: the Hobby plan is non-commercial only.
-3. `vercel.json` already schedules the daily lead job at 01:17 UTC. Vercel sends `CRON_SECRET` automatically.
+Vercel plus Neon or Supabase is the simplest setup.
 
-### Paddle (USD, worldwide)
+1. Create the database and run `DATABASE_URL=... npm run db:migrate`.
+2. Import the repo into Vercel and add the variables above. Use the Pro plan, because Hobby doesn't allow commercial use.
+3. `vercel.json` schedules the daily lead job for 01:17 UTC, and Vercel sends `CRON_SECRET` with it automatically.
 
-1. Create a Paddle account. Nepal is not on Paddle's blocked list, but confirm onboarding with their support before going live.
-2. In the sandbox, create a "Pitchcraft Pro" product with two prices: $19/month and $149/year. Copy their price IDs into `NEXT_PUBLIC_PADDLE_PRICE_MONTHLY` and `NEXT_PUBLIC_PADDLE_PRICE_YEARLY`.
-3. Create a client-side token and put it in `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`.
-4. Add a notification destination pointing to `https://YOUR_DOMAIN/api/webhooks/paddle`, with events `subscription.*` and `transaction.completed`. Copy its secret into `PADDLE_WEBHOOK_SECRET`.
-5. Create a server API key with permission to write subscriptions, and put it in `PADDLE_API_KEY`. It's used to cancel a subscription when a user deletes their account.
-6. Set your domain as the default payment link. Paddle reviews your site during approval, and the `/terms`, `/privacy` and `/refund` pages are what they look for.
-7. When everything works, switch `PADDLE_ENV=production` and replace the keys.
+**Paddle.** Nepal isn't on Paddle's blocked list, but confirm with their support before you rely on it. Then:
+1. Create a product with a $19 monthly and a $149 yearly price, and put the price IDs in `NEXT_PUBLIC_PADDLE_PRICE_MONTHLY` and `NEXT_PUBLIC_PADDLE_PRICE_YEARLY`.
+2. Create a client-side token for `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`.
+3. Create a server API key that can write subscriptions, for `PADDLE_API_KEY`.
+4. Point a notification destination at `/api/webhooks/paddle` for `subscription.*` and `transaction.completed`, and put its secret in `PADDLE_WEBHOOK_SECRET`.
 
-### Email (Resend)
+Paddle reviews `/terms`, `/privacy` and `/refund` during approval.
 
-1. Create a free account at <https://resend.com> (3,000 emails/month) and verify your domain.
-2. Set `RESEND_API_KEY` and `EMAIL_FROM` (for example `Pitchcraft <hello@yourdomain.com>`).
+**Khalti.** Live payouts need a registered firm and a PAN. The sandbox at test-admin.khalti.com is enough to test. The return URL is `/api/billing/khalti/callback`, and each payment adds 30 days of Pro.
 
-### Khalti (NPR, Nepal)
+**Resend.** Verify your sending domain, then set `RESEND_API_KEY` and `EMAIL_FROM`.
 
-1. You need a registered firm and a PAN to receive live payouts. For testing, a sandbox merchant at <https://test-admin.khalti.com> is enough.
-2. Put the secret key in `KHALTI_SECRET_KEY`. Keep `KHALTI_ENV=sandbox` until you go live.
-3. The return URL is `https://YOUR_DOMAIN/api/billing/khalti/callback`. Each payment gives 30 days of Pro.
+## Security notes
+
+- The audit fetcher only reaches public addresses. It checks every redirect, and it checks the resolved IP when it connects, so DNS rebinding can't reach internal services.
+- Session tokens, reset links and confirmation links are stored as SHA-256 hashes. Links expire and work once.
+- "Forgot password" answers the same way whether or not an account exists, and sends at most three emails an hour.
+- Free audits and sample drafts are rate-limited per visitor. Only a hash of the IP is stored.
+- Paddle webhooks are verified with HMAC and a five-minute timestamp window. Khalti payments are confirmed with Khalti's lookup API, and a payment can only be credited once.
+- Deleting an account cancels any Paddle subscription first, then removes every row that belongs to the user.
 
 ## Tests
 
 ```bash
-npm run lint && npm run typecheck
-npm test                  # 70 unit tests: pure logic, no database needed
-npm run test:integration  # 27 tests against a real Postgres database
-npm run test:e2e          # 21 browser tests: builds the app and drives it in Chrome
-npm run test:all          # all of the above plus lint and typecheck
+npm test                  # unit tests, no database needed
+npm run test:integration  # services against a real Postgres (creates pitchcraft_integration)
+npm run test:e2e          # builds the app and drives it in Chrome (uses pitchcraft_test)
+npm run test:all          # all of the above, plus lint and typecheck
 ```
 
-[`TESTING.md`](TESTING.md) lists every test and its latest result.
+[`TESTING.md`](TESTING.md) lists every test from the last run. The integration and browser suites need no internet access. They use fake businesses, local fixture websites and a fake Khalti server. Override the databases with `INTEGRATION_DATABASE_URL` and `TEST_DATABASE_URL`.
 
-- **Integration tests** create `pitchcraft_integration` automatically. Override it with `INTEGRATION_DATABASE_URL`.
-- **Browser tests** use `pitchcraft_test`. Override it with `TEST_DATABASE_URL`.
-- **No internet needed:** both use fake businesses, local fixture websites and a fake Khalti server.
+## Known limitations
 
-## Project structure
-
-```
-src/
-  app/                  pages, server actions (app/actions), API routes (app/api)
-    app/                signed-in area: today, pipeline, settings, billing, leads/[id]
-    r/[id]/             public audit report
-  components/           UI
-  db/                   Drizzle schema and client
-  lib/
-    audit/              safe fetch, HTML analysis, scoring, PageSpeed
-    leads/              OpenStreetMap + mock providers, niches, ranking
-    pitch/              Claude pitch writer + template fallback
-    billing/            Paddle signature checks, Khalti client
-    services/           database-backed operations (account, audits, delivery, leads, billing)
-    email.ts            Resend sender and email templates
-drizzle/                SQL migrations
-e2e/                    Playwright tests and fixture websites
-tests/                  Vitest unit tests
-research/               market research behind the product
-```
-
-## Known limits and next steps
-
-- **Data:** OpenStreetMap coverage varies by city, and many businesses have no email listed. The lead page then suggests calling or using the business's contact form. Google Places could be added as a second provider.
-- **Email confirmation is a reminder, not a gate:** unconfirmed users can still use the app. Gate lead delivery on `emailVerifiedAt` if fake signups become a problem.
-- **Legal pages:** they are a plain-language starting point, not legal advice. Have them reviewed before you scale.
-- **Leads:** delivery runs one user at a time to respect OpenStreetMap's fair-use policy. With many users, move it to a queue and consider a paid Overpass instance.
-- **Rate limits:** they are stored in Postgres, so they work across serverless instances.
+- OpenStreetMap coverage varies by city, and many listings have no email address. The lead page then suggests calling or using the business's contact form. Google Places would make a good second source.
+- Email confirmation is a reminder, not a gate. If fake signups become a problem, require `emailVerifiedAt` before delivering leads.
+- Lead delivery runs one user at a time to stay within OpenStreetMap's fair-use policy. With many users it should move to a queue, probably with a paid Overpass instance.
+- The legal pages are a plain-language starting point. Have a lawyer read them before you grow.

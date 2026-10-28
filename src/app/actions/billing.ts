@@ -34,7 +34,7 @@ export async function startKhaltiPayment(_: BillingState): Promise<BillingState>
     paymentUrl = res.payment_url;
   } catch (err) {
     console.error("Khalti initiate failed", err);
-    return { error: "Couldn't start the Khalti payment. Please try again." };
+    return { error: "Couldn't start the Khalti payment. Try again." };
   }
   redirect(paymentUrl);
 }

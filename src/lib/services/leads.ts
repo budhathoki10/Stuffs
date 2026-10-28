@@ -1,17 +1,34 @@
 import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { topIssues } from "@/lib/audit/analyze";
+import { PROBLEM_SHORT } from "@/lib/audit/problems";
+import type { AuditCheck } from "@/lib/audit/types";
 
+function shortProblem(checks: AuditCheck[] | null): string | null {
+  const top = checks ? topIssues(checks, 1)[0] : undefined;
+  return top ? (PROBLEM_SHORT[top.id] ?? top.label) : null;
+}
+
+export type LeadRow = Awaited<ReturnType<typeof listLeads>>[number];
+
+/** All of a user's leads with their site score and the single most serious problem found. */
 export async function listLeads(userId: string) {
-  return db
+  const rows = await db
     .select({
       lead: schema.leads,
       auditScore: schema.audits.score,
+      checks: schema.audits.checks,
     })
     .from(schema.leads)
     .leftJoin(schema.audits, eq(schema.audits.id, schema.leads.auditId))
     .where(eq(schema.leads.userId, userId))
     .orderBy(desc(schema.leads.deliveredOn), desc(schema.leads.opportunity), schema.leads.name);
+  return rows.map(({ lead, auditScore, checks }) => ({
+    lead,
+    auditScore,
+    topProblem: lead.website ? shortProblem(checks) : PROBLEM_SHORT.website,
+  }));
 }
 
 export async function getLeadWithAudit(userId: string, leadId: string) {

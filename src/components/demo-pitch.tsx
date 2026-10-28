@@ -13,11 +13,8 @@ export function DemoPitch({ auditId }: { auditId: string }) {
   return (
     <form action={action} className="space-y-3">
       <input type="hidden" name="auditId" value={auditId} />
-      <p className="text-sm text-muted">
-        See the email a freelancer could send this business, written from the problems found above.
-      </p>
       <Button type="submit" disabled={pending}>
-        {pending ? "Writing pitch…" : "Write a sample pitch"}
+        {pending ? "Drafting…" : "Draft the email"}
       </Button>
       <FormMessage error={state?.error} />
     </form>

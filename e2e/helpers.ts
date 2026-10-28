@@ -18,7 +18,7 @@ export async function signUp(page: Page, address: string, name = "Test Freelance
   await page.getByLabel("Email").fill(address);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByLabel("I agree to the Terms").check();
-  await page.getByRole("button", { name: "Create free account" }).click();
+  await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/app\/settings\?welcome=1/);
 }
 
@@ -27,9 +27,9 @@ export async function setUpFreelancer(page: Page, address: string) {
   await signUp(page, address);
   await page.getByLabel("Type of business").selectOption("dentist");
   await page.getByLabel("City").fill("Kathmandu, Nepal");
-  await page.getByRole("button", { name: "Save and get my leads" }).click();
+  await page.getByRole("button", { name: "Save and find leads" }).click();
   await expect(page).toHaveURL(/\/app\?first=1/);
-  await page.getByRole("button", { name: "Find my leads now" }).click();
+  await page.getByRole("button", { name: "Find today's leads" }).click();
   await expect(page.getByRole("link", { name: /Dentist/ })).toHaveCount(5, { timeout: 30_000 });
 }
 

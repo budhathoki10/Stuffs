@@ -25,7 +25,7 @@ export async function runFreeAudit(_: AuditFormState, formData: FormData): Promi
   const user = await getCurrentUser();
   const ipHash = hashIp(clientIp(await headers()));
   if (!user && (await anonymousAuditsLastHour(ipHash)) >= ANON_AUDITS_PER_HOUR) {
-    return { url, error: "You've used the free checks for this hour. Create a free account to keep going." };
+    return { url, error: "That's five free checks this hour. Make a free account to keep going." };
   }
 
   let id: string;
@@ -36,7 +36,7 @@ export async function runFreeAudit(_: AuditFormState, formData: FormData): Promi
       return { url, error: "That doesn't look like a public website address." };
     }
     console.error("Audit failed", err);
-    return { url, error: "Something went wrong while checking that site. Please try again." };
+    return { url, error: "Something broke while checking that site. Try again in a moment." };
   }
   redirect(`/r/${id}`);
 }
@@ -52,7 +52,7 @@ export async function generateDemoPitch(_: DemoPitchState, formData: FormData): 
   const user = await getCurrentUser();
   const ipHash = hashIp(clientIp(await headers()));
   if (!user && (await anonymousPitchesLastHour(ipHash)) >= ANON_PITCHES_PER_HOUR) {
-    return { error: "You've reached the free sample limit for this hour. Sign up free to get daily pitches." };
+    return { error: "That's the limit on sample drafts for this hour. A free account gets you ten a week." };
   }
 
   const pitch = await generatePitch({

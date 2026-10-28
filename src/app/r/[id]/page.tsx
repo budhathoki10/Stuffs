@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AuditSummary, CheckList } from "@/components/audit-report";
 import { DemoPitch } from "@/components/demo-pitch";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { ButtonLink, Card } from "@/components/ui";
+import { Eyebrow } from "@/components/ui";
 import { getAudit } from "@/lib/services/audits";
 
 function hostOf(url: string) {
@@ -32,37 +33,52 @@ export default async function ReportPage({ params }: PageProps<"/r/[id]">) {
   if (!audit) notFound();
   const name = audit.businessName ?? hostOf(audit.url);
 
+  const checkedOn = audit.createdAt.toLocaleDateString("en-US", { dateStyle: "long" });
+  const problems = audit.checks.filter((c) => !c.passed).length;
+
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
-        <p className="text-sm text-muted">Free website health check · {audit.createdAt.toLocaleDateString("en-US", { dateStyle: "medium" })}</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">Website report for {name}</h1>
-        <a href={audit.finalUrl ?? audit.url} className="text-sm text-accent underline" rel="nofollow noopener" target="_blank">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-12">
+        <Eyebrow>Website check · {checkedOn}</Eyebrow>
+        <h1 className="mt-3 font-serif text-4xl font-medium leading-tight tracking-tight">{name}</h1>
+        <a
+          href={audit.finalUrl ?? audit.url}
+          className="mt-1 inline-block break-all font-mono text-sm text-muted underline-offset-4 hover:underline"
+          rel="nofollow noopener noreferrer"
+          target="_blank"
+        >
           {audit.finalUrl ?? audit.url}
         </a>
 
-        <Card className="mt-6">
+        <div className="mt-8 border-y border-border py-6">
           <AuditSummary score={audit.score} metrics={audit.metrics} />
-        </Card>
+        </div>
 
-        <section className="mt-8">
-          <h2 className="mb-3 text-xl font-semibold">What we found</h2>
+        <section className="mt-10">
+          <h2 className="font-serif text-2xl font-medium">
+            {problems === 0 ? "Nothing to fix" : problems === 1 ? "One thing to fix" : `${problems} things to fix`}
+          </h2>
+          <p className="mb-4 mt-1 text-sm text-muted">Most serious first. Each one is something a visitor would notice.</p>
           <CheckList checks={audit.checks} />
         </section>
 
-        <Card className="mt-10">
-          <h2 className="mb-2 text-xl font-semibold">Freelancer? Turn this into a client.</h2>
+        <section className="mt-14 rounded-md border border-border bg-surface p-6">
+          <h2 className="font-serif text-xl font-medium">Are you a freelancer?</h2>
+          <p className="mb-4 mt-1 text-sm text-muted">
+            Draft the email you&apos;d send this business, built from the problems above. You can edit it before
+            sending.
+          </p>
           <DemoPitch auditId={audit.id} />
-        </Card>
+        </section>
 
-        <div className="mt-10 rounded-xl bg-accent-soft p-6 text-center">
-          <p className="font-semibold">Made with Pitchcraft</p>
-          <p className="mt-1 text-sm text-muted">Get 5 businesses like this, with ready-to-send pitches, every day.</p>
-          <ButtonLink href="/signup" className="mt-4">
-            Start free
-          </ButtonLink>
-        </div>
+        <p className="mt-10 text-sm text-muted">
+          This report was made with Pitchcraft, which finds businesses like this one for freelancers every morning.{" "}
+          <Link href="/signup" className="text-foreground underline underline-offset-4">
+            Try it free
+          </Link>
+          .
+        </p>
       </main>
       <SiteFooter />
     </>

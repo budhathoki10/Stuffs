@@ -23,8 +23,8 @@ export function LeadPitch({
       {pitch && <PitchView key={`${pitch.subject}${pitch.body}`} subject={pitch.subject} body={pitch.body} to={email} />}
       <form action={action} className="space-y-2">
         <input type="hidden" name="leadId" value={leadId} />
-        <Button type="submit" variant={pitch ? "secondary" : "primary"} disabled={pending}>
-          {pending ? "Writing your pitch…" : pitch ? "Write a different version" : "Write my pitch"}
+        <Button type="submit" variant={pitch ? "ghost" : "primary"} disabled={pending} className={pitch ? "px-0" : ""}>
+          {pending ? "Drafting…" : pitch ? "Draft another version" : "Draft the email"}
         </Button>
         <FormMessage error={state?.error} />
       </form>
@@ -63,7 +63,7 @@ export function LeadStatusForm({
         </select>
       </Field>
       {current === "won" && (
-        <Field label="Project value (USD)" hint="Counts toward your “Earned with Pitchcraft” total.">
+        <Field label="Project value in USD" hint="Adds to your earnings on the Today page.">
           <input
             name="wonAmount"
             inputMode="decimal"
@@ -74,7 +74,7 @@ export function LeadStatusForm({
         </Field>
       )}
       <Field label="Notes">
-        <textarea name="notes" rows={3} defaultValue={notes ?? ""} className={inputClass} placeholder="Spoke to the owner, follow up Friday…" />
+        <textarea name="notes" rows={3} defaultValue={notes ?? ""} className={inputClass} placeholder="Spoke to the owner. Call back Friday." />
       </Field>
       <FormMessage error={state?.error} success={state?.success} />
       <Button type="submit" disabled={pending}>

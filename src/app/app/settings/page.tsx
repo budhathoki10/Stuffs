@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { DeleteAccountForm } from "@/components/auth-forms";
 import { SettingsForm } from "@/components/settings-form";
-import { Card } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import { activeSearch } from "@/lib/services/delivery";
 
@@ -12,12 +11,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
   const [{ welcome }, search] = await Promise.all([searchParams, activeSearch(user.id)]);
   const isWelcome = welcome === "1" && !search;
   return (
-    <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{isWelcome ? "Welcome! Who do you want to work with?" : "Settings"}</h1>
-        <p className="text-muted">We use this to find the right businesses and write pitches in your name.</p>
-      </div>
-      <Card>
+    <div className="max-w-3xl">
+      <h1 className="font-serif text-4xl font-medium tracking-tight">{isWelcome ? "One more step" : "Settings"}</h1>
+      <p className="mt-1.5 text-sm text-muted">
+        {isWelcome ? "Tell us who you'd like as clients and we'll find the first five." : "Changes apply from your next batch of leads."}
+      </p>
+      <div className="mt-10">
         <SettingsForm
           welcome={isWelcome}
           defaults={{
@@ -29,12 +28,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/app/set
             radiusKm: search?.radiusKm ?? 10,
           }}
         />
-      </Card>
+      </div>
       {!isWelcome && (
-        <Card className="border-danger/40">
-          <h2 className="mb-2 font-semibold">Delete account</h2>
-          <DeleteAccountForm />
-        </Card>
+        <section className="mt-16 border-t border-border pt-8">
+          <h2 className="font-serif text-xl font-medium">Delete account</h2>
+          <div className="mt-3">
+            <DeleteAccountForm />
+          </div>
+        </section>
       )}
     </div>
   );

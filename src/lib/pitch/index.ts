@@ -54,25 +54,90 @@ export function buildPitchPrompt(input: PitchInput): string {
     .join("\n");
 }
 
+/** First number in a check's detail, e.g. "4.2" from "The server took 4.2s to deliver the page." */
+const firstNumber = (text: string) => text.match(/\d+(?:\.\d+)?/)?.[0];
+
+/**
+ * What the owner would notice, then what it costs them, written for each check so the
+ * template reads like a person wrote it rather than two stitched-together report lines.
+ */
+function observationFor(issue: AuditCheck, website: string): [string, string] {
+  const host = website.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  switch (issue.id) {
+    case "https":
+      return [
+        `I opened ${host} and Chrome showed a "Not secure" warning next to the address.`,
+        "That warning is enough to make a lot of people close the tab before they call or book.",
+      ];
+    case "mobile":
+      return [
+        `I opened ${host} on my phone and had to pinch and zoom to read it.`,
+        "Most people looking for a local business are on their phone, and they rarely bother zooming.",
+      ];
+    case "speed":
+      return [
+        `Your site took ${firstNumber(issue.detail) ?? "several"} seconds to start loading when I checked it.`,
+        "People searching on their phone tend to give up and tap the next result.",
+      ];
+    case "pagespeed":
+      return [
+        `Google's own speed test rates ${host} as slow on phones.`,
+        "Google ranks slow sites lower, and visitors leave before the page finishes.",
+      ];
+    case "title":
+      return [
+        "The title Google shows for your site doesn't say what you do or where you are.",
+        "It's the first line people read in the search results.",
+      ];
+    case "description":
+      return [
+        "Your site doesn't give Google a description to show under your name in search results.",
+        "Google fills the gap with whatever text it finds, which rarely sells you well.",
+      ];
+    case "contact":
+      return [
+        "I couldn't find a tap-to-call button, an email link or a contact form on your homepage.",
+        "When getting in touch takes effort, people go to the next business on the list.",
+      ];
+    case "booking":
+      return ["There's no way to book or order on your website.", "Online booking picks up the customers who look you up after hours."];
+    case "fresh":
+      return [
+        `The footer on your site still says © ${firstNumber(issue.detail) ?? "an old year"}.`,
+        "It makes people wonder whether you're still open.",
+      ];
+    case "reachable":
+      return ["The website link on your map listing doesn't load for me.", "Anyone who clicks it will assume you've closed."];
+    default:
+      return [issue.detail, issue.impact];
+  }
+}
+
 /** Deterministic pitch used when no API key is configured or the model call fails. */
 export function templatePitch(input: PitchInput): Pitch {
   const skill = SKILLS[input.skill];
   const top = input.issues[0];
   const noSite = !input.website || top?.id === "website";
   const greeting = `Hi ${input.businessName} team,`;
-  const observation = noSite
-    ? `I was looking for ${input.category.toLowerCase()} options${input.city ? ` in ${input.city}` : ""} and noticed ${input.businessName} doesn't have a website yet.`
-    : `I took a quick look at ${input.website} and noticed one thing worth fixing: ${top ? top.detail.charAt(0).toLowerCase() + top.detail.slice(1) : "a few small details that could be improved."}`;
-  const impact = noSite
-    ? "Customers who search online can't see your hours, prices, or a way to book, so many of them pick whoever shows up first."
-    : top?.impact ?? "Small fixes like these usually make it easier for customers to contact you.";
-  const offer = noSite
-    ? `I build simple, fast websites for local businesses, and I'd be happy to sketch a free one-page mock-up for ${input.businessName} so you can see what it could look like.`
-    : `I help businesses with ${skill.offer}, and this is usually a quick fix.`;
-  const report = input.reportUrl ? `\n\nI put the details in a free report: ${input.reportUrl}` : "";
+
+  let opening: string;
+  let offer: string;
+  if (noSite) {
+    opening = `I was looking for a ${input.category.toLowerCase()}${input.city ? ` in ${input.city}` : ""} and noticed ${input.businessName} doesn't have a website. People who search online can't see your hours, prices or a way to book, so they tend to pick whoever does show up.`;
+    offer = `I build simple, fast websites for local businesses. I'd be glad to put together a free one-page mock-up for ${input.businessName} so you can see what it could look like.`;
+  } else if (top) {
+    const [noticed, cost] = observationFor(top, input.website!);
+    opening = `${noticed} ${cost}`;
+    offer = `${skill.intro}, and this one is usually a quick fix.`;
+  } else {
+    opening = `I had a look at ${input.website} and it's in decent shape, but there are a couple of small things I'd tighten up.`;
+    offer = `${skill.intro}.`;
+  }
+
+  const report = input.reportUrl ? `\n\nI wrote up what I found here, in case it's useful: ${input.reportUrl}` : "";
   const signoff = `Best,\n${input.freelancerName}${input.portfolioUrl ? `\n${input.portfolioUrl}` : ""}`;
-  const body = `${greeting}\n\n${observation} ${impact}\n\n${offer} Would you be open to a 10-minute call this week?${report}\n\n${signoff}`;
-  const subject = noSite ? `A website for ${input.businessName}?` : `Quick fix for the ${input.businessName} website`;
+  const body = `${greeting}\n\n${opening}\n\n${offer} Would a ten-minute call this week work for you?${report}\n\n${signoff}`;
+  const subject = noSite ? `A website for ${input.businessName}?` : `Something I noticed on the ${input.businessName} website`;
   return { subject: subject.slice(0, 90), body, model: "template" };
 }
 

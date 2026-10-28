@@ -1,34 +1,44 @@
 @import "tailwindcss";
 
+/*
+ * Paper, ink and a red pen. Red is reserved for marking problems;
+ * green only ever means money that was actually earned.
+ */
 :root {
-  --background: #fafaf7;
-  --surface: #ffffff;
-  --foreground: #1c1f1d;
-  --muted: #5f6660;
-  --border: #e3e5df;
-  --accent: #157a4a;
-  --accent-strong: #0f5f39;
-  --accent-soft: #e5f3ea;
-  --danger: #b4321f;
-  --danger-soft: #fbeae6;
-  --warn: #9a6200;
-  --warn-soft: #fdf2dc;
+  --background: #f6f4ef;
+  --surface: #fffefb;
+  --foreground: #1b1a17;
+  --muted: #6e695f;
+  --faint: #a29d92;
+  --border: #e3dfd5;
+  --strong-border: #c9c3b6;
+  --ink: #1b1a17;
+  --ink-hover: #3a3833;
+  --on-ink: #fffefb;
+  --pen: #c23a22;
+  --pen-soft: #f8e6e1;
+  --money: #2d6a3e;
+  --money-soft: #e3efe5;
+  --highlight: #fbefb4;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #101311;
-    --surface: #171b18;
-    --foreground: #e9ece8;
-    --muted: #a2aaa3;
-    --border: #2a302b;
-    --accent: #3cc47f;
-    --accent-strong: #5fd697;
-    --accent-soft: #15301f;
-    --danger: #f08a78;
-    --danger-soft: #3a1a14;
-    --warn: #f0b85a;
-    --warn-soft: #34270f;
+    --background: #161512;
+    --surface: #1d1c19;
+    --foreground: #ebe8e1;
+    --muted: #a39e93;
+    --faint: #6f6a61;
+    --border: #2e2c27;
+    --strong-border: #45423b;
+    --ink: #ebe8e1;
+    --ink-hover: #ffffff;
+    --on-ink: #161512;
+    --pen: #f07a62;
+    --pen-soft: #3a1e17;
+    --money: #7cc48f;
+    --money-soft: #1c2f21;
+    --highlight: #4a4120;
   }
 }
 
@@ -37,21 +47,26 @@
   --color-surface: var(--surface);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --color-border: var(--border);
-  --color-accent: var(--accent);
-  --color-accent-strong: var(--accent-strong);
-  --color-accent-soft: var(--accent-soft);
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
-  --color-warn: var(--warn);
-  --color-warn-soft: var(--warn-soft);
+  --color-strong-border: var(--strong-border);
+  --color-ink: var(--ink);
+  --color-ink-hover: var(--ink-hover);
+  --color-on-ink: var(--on-ink);
+  --color-pen: var(--pen);
+  --color-pen-soft: var(--pen-soft);
+  --color-money: var(--money);
+  --color-money-soft: var(--money-soft);
+  --color-highlight: var(--highlight);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-newsreader);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-feature-settings: "ss01", "cv11";
 }
 
 input,
@@ -59,4 +74,15 @@ select,
 textarea {
   color: var(--foreground);
   background: var(--surface);
+}
+
+::selection {
+  background: var(--highlight);
+}
+
+/* A hand-drawn red underline for marking problems. */
+.pen-mark {
+  text-decoration: underline wavy var(--pen);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
 }

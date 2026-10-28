@@ -11,16 +11,16 @@ test.describe.configure({ mode: "serial" });
 
 test("visitor can audit a website and get a sample pitch without signing up", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Stop bidding on Upwork");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Your next client already has a broken website.");
   await page.getByLabel("Business website").fill("http://127.0.0.1:4100/old.html");
-  await page.getByRole("button", { name: "Check website free" }).click();
+  await page.getByRole("button", { name: "Check this site" }).click();
 
   await expect(page).toHaveURL(/\/r\/[a-z0-9]{10}$/);
-  await expect(page.getByText("Losing customers")).toBeVisible();
-  await expect(page.getByText("✗ Works on phones")).toBeVisible();
+  await expect(page.getByText("Probably costing them customers")).toBeVisible();
+  await expect(page.getByText("Doesn't fit on a phone", { exact: true })).toBeVisible();
   await expect(page.getByText("The footer says © 2017.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Write a sample pitch" }).click();
+  await page.getByRole("button", { name: "Draft the email" }).click();
   const body = page.getByLabel("Pitch body");
   await expect(body).toBeVisible();
   await expect(body).toHaveValue(/Hi .* team,/);
@@ -30,7 +30,7 @@ test("visitor can audit a website and get a sample pitch without signing up", as
 test("rejects non-web URLs in the free audit", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Business website").fill("ftp://example.com");
-  await page.getByRole("button", { name: "Check website free" }).click();
+  await page.getByRole("button", { name: "Check this site" }).click();
   await expect(page.locator("p[role=alert]")).toContainText("doesn't look like a public website");
 });
 
@@ -43,40 +43,41 @@ test("freelancer signs up, gets leads, pitches, and tracks a win", async ({ page
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByLabel("I agree to the Terms").check();
-  await page.getByRole("button", { name: "Create free account" }).click();
+  await page.getByRole("button", { name: "Create account" }).click();
 
   await expect(page).toHaveURL(/\/app\/settings\?welcome=1/);
-  await expect(page.getByText(`Please confirm your email: we sent a link to ${email}.`)).toBeVisible();
+  await expect(page.getByText(`Confirm your email address. We sent a link to ${email}.`)).toBeVisible();
   await page.getByLabel("Type of business").selectOption("dentist");
   await page.getByLabel("City").fill("Kathmandu, Nepal");
   await page.getByLabel("Portfolio or website").fill("kushal.dev");
-  await page.getByRole("button", { name: "Save and get my leads" }).click();
+  await page.getByRole("button", { name: "Save and find leads" }).click();
 
   await expect(page).toHaveURL(/\/app\?first=1/);
-  await page.getByRole("button", { name: "Find my leads now" }).click();
+  await page.getByRole("button", { name: "Find today's leads" }).click();
 
   const leads = page.getByRole("link", { name: /Dentist/ });
   await expect(leads).toHaveCount(5, { timeout: 30_000 });
   // Web developers see businesses without a website first.
-  await expect(leads.first()).toContainText("No website");
+  const rows = page.getByRole("table", { name: "Today's leads" }).getByRole("row");
+  await expect(rows.nth(1)).toContainText("No website");
   await expect(page.getByTestId("stat-leads")).toHaveText("5");
 
   // Open a lead that has a website, so the audit and report are shown.
   await page.getByRole("link", { name: /Maple Street Dentist/ }).click();
   await expect(page.getByRole("heading", { name: "Maple Street Dentist" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Shareable report ↗" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open the report you can send them" })).toBeVisible();
   await expect(page.getByText("hello@maple.test").first()).toBeVisible();
 
-  await page.getByRole("button", { name: "Write my pitch" }).click();
+  await page.getByRole("button", { name: "Draft the email" }).click();
   await expect(page.getByLabel("Pitch body")).toHaveValue(/Kushal Budhathoki\nhttps:\/\/kushal\.dev/);
   await expect(page.getByRole("link", { name: "Open in Gmail" })).toHaveAttribute("href", /to=hello%40maple\.test/);
 
   await page.getByLabel("Status").selectOption("won");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.locator("p[role=alert]")).toContainText("How much is the project worth");
-  await page.getByLabel("Project value (USD)").fill("750");
+  await expect(page.locator("p[role=alert]")).toContainText("Enter what the project is worth");
+  await page.getByLabel("Project value in USD").fill("750");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Marked as won. Nice work!")).toBeVisible();
+  await expect(page.getByText("Saved. $750 added to your earnings.")).toBeVisible();
 
   await page.getByRole("link", { name: "Today", exact: true }).click();
   await expect(page.getByTestId("stat-earned")).toHaveText("$750");
@@ -89,8 +90,8 @@ test("freelancer signs up, gets leads, pitches, and tracks a win", async ({ page
 
   // Quick action from the board.
   const newColumn = page.getByRole("region", { name: "New" });
-  await newColumn.getByRole("button", { name: "Mark pitch sent" }).first().click();
-  await expect(page.getByRole("region", { name: "Pitch sent" }).getByRole("listitem")).toHaveCount(1);
+  await newColumn.getByRole("button", { name: "Mark as emailed" }).first().click();
+  await expect(page.getByRole("region", { name: "Emailed" }).getByRole("listitem")).toHaveCount(1);
 });
 
 test("cron endpoint requires the secret", async ({ request }) => {
@@ -142,13 +143,13 @@ test("Khalti callback with an unknown payment is rejected", async ({ page }) => 
 
 test("the emailed link confirms the address and works only once", async ({ page }) => {
   await logIn(page, email, password);
-  await expect(page.getByText("Please confirm your email")).toBeVisible();
+  await expect(page.getByText("Confirm your email address")).toBeVisible();
   const link = latestEmailLink(email, "Confirm your Pitchcraft email");
 
   await page.goto(link);
   await expect(page).toHaveURL(/\/app\?verified=1/);
-  await expect(page.locator("p[role=status]")).toHaveText("Email confirmed. Thanks!");
-  await expect(page.getByText("Please confirm your email")).toHaveCount(0);
+  await expect(page.locator("p[role=status]")).toHaveText("Email confirmed.");
+  await expect(page.getByText("Confirm your email address")).toHaveCount(0);
 
   await page.goto(link);
   await expect(page.locator("p[role=alert]")).toContainText("expired or was already used");
@@ -179,7 +180,7 @@ test("forgotten password can be reset by email", async ({ page }) => {
   await page.locator("input[name=confirm]").fill(newPassword);
   await page.getByRole("button", { name: "Save new password" }).click();
   await expect(page).toHaveURL(/\/app\?reset=1/);
-  await expect(page.locator("p[role=status]")).toContainText("Your password was changed");
+  await expect(page.locator("p[role=status]")).toContainText("Password changed");
 
   await page.goto(link);
   await expect(page.getByRole("heading", { name: "This link has expired" })).toBeVisible();
@@ -221,7 +222,7 @@ test("a free user can delete the account and all data", async ({ page }) => {
   await page.getByLabel("Email").fill(doomed);
   await page.getByLabel("Password").fill(password);
   await page.getByLabel("I agree to the Terms").check();
-  await page.getByRole("button", { name: "Create free account" }).click();
+  await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/welcome=1/);
 
   await page.goto("/app/settings");
@@ -232,7 +233,7 @@ test("a free user can delete the account and all data", async ({ page }) => {
   await page.getByLabel("Confirm with your password").fill(password);
   await page.getByRole("button", { name: "Delete my account" }).click();
   await expect(page).toHaveURL(/\/\?deleted=1$/);
-  await expect(page.locator("p[role=status]")).toContainText("Your account and data have been deleted");
+  await expect(page.locator("p[role=status]")).toContainText("Your account and everything in it has been deleted");
 
   const sql = postgres(TEST_DATABASE_URL, { max: 1 });
   const rows = await sql`select id from users where email = ${doomed}`;

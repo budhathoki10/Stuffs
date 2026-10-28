@@ -15,12 +15,12 @@ test("paying NPR with Khalti activates 30 days of Pro, exactly once", async ({ p
   await page.goto("/app/billing");
   await expect(page.getByTestId("current-plan")).toHaveText("Free");
 
-  await page.getByRole("button", { name: "Pay NPR 999 for 30 days" }).click();
+  await page.getByRole("button", { name: "Pay NPR 999" }).click();
   // Fake Khalti takes the payment and sends the customer back.
   await expect(page).toHaveURL(/\/app\/billing\?status=success/);
-  await expect(page.locator("p[role=status]")).toContainText("Payment received. Pro is active.");
+  await expect(page.locator("p[role=status]")).toContainText("Payment received. You're on Pro.");
   await expect(page.getByTestId("current-plan")).toHaveText("Pro");
-  await expect(page.getByText(/Active until/)).toBeVisible();
+  await expect(page.getByText("Paid until")).toBeVisible();
 
   const [payment] = await query((sql) => sql`
     select p.provider_ref, p.status, p.amount_minor, p.currency, u.pro_until
@@ -54,10 +54,10 @@ test("freelancers can never open each other's leads", async ({ page, browser }) 
   await page.goto("/app/settings");
   await page.getByLabel("Type of business").selectOption("dentist");
   await page.getByLabel("City").fill("Kathmandu, Nepal");
-  await page.getByRole("button", { name: "Save settings" }).click();
+  await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.locator("p[role=status]")).toHaveText("Saved.");
   await page.goto("/app");
-  await page.getByRole("button", { name: "Find my leads now" }).click();
+  await page.getByRole("button", { name: "Find today's leads" }).click();
   await expect(page.getByRole("link", { name: /Dentist/ })).toHaveCount(5, { timeout: 30_000 });
   const [aliceLead] = await query((sql) => sql`
     select l.id from leads l join users u on u.id = l.user_id where u.email = ${alice} limit 1`);
@@ -81,8 +81,8 @@ test("free users get 10 pitches a week, then see an upgrade message", async ({ p
     select ${user.id as string}, 's', 'b', 'template' from generate_series(1, 10) returning id`);
 
   await page.getByRole("link", { name: /Dentist/ }).first().click();
-  await page.getByRole("button", { name: "Write my pitch" }).click();
-  await expect(page.locator("p[role=alert]")).toContainText("You've used this week's free pitches");
+  await page.getByRole("button", { name: "Draft the email" }).click();
+  await expect(page.locator("p[role=alert]")).toContainText("That's your 10 free drafts for this week");
 });
 
 test("changing settings updates the search", async ({ page }) => {
@@ -93,10 +93,10 @@ test("changing settings updates the search", async ({ page }) => {
   await page.getByLabel("Type of business").selectOption("cafe");
   await page.getByLabel("City").fill("Pokhara, Nepal");
   await page.getByLabel("Distance").selectOption("25");
-  await page.getByRole("button", { name: "Save settings" }).click();
+  await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.locator("p[role=status]")).toHaveText("Saved.");
   await page.goto("/app");
-  await expect(page.getByText("Looking for cafés within 25 km of Pokhara, Nepal.")).toBeVisible();
+  await expect(page.getByText("Cafés within 25 km of Pokhara, Nepal.")).toBeVisible();
 
   const searches = await query((sql) => sql`
     select s.active from searches s join users u on u.id = s.user_id where u.email = ${bob}`);
@@ -132,13 +132,13 @@ test.describe("anonymous free checks", () => {
     for (let i = 1; i <= 5; i++) {
       await page.goto("/");
       await page.getByLabel("Business website").fill("http://127.0.0.1:4100/good.html");
-      await page.getByRole("button", { name: "Check website free" }).click();
+      await page.getByRole("button", { name: "Check this site" }).click();
       await expect(page).toHaveURL(/\/r\//);
     }
     await page.goto("/");
     await page.getByLabel("Business website").fill("http://127.0.0.1:4100/good.html");
-    await page.getByRole("button", { name: "Check website free" }).click();
-    await expect(page.locator("p[role=alert]")).toContainText("You've used the free checks for this hour");
+    await page.getByRole("button", { name: "Check this site" }).click();
+    await expect(page.locator("p[role=alert]")).toContainText("That's five free checks this hour");
     // What they typed is kept so they don't lose it.
     await expect(page.getByLabel("Business website")).toHaveValue("http://127.0.0.1:4100/good.html");
   });
@@ -160,7 +160,7 @@ test.describe("on a phone", () => {
     for (const path of ["/app", "/app/pipeline", "/app/settings", "/app/billing"]) await fits(path);
     await page.goto("/app");
     await page.getByRole("link", { name: /Dentist/ }).first().click();
-    await expect(page.getByRole("heading", { name: "Website check" }).or(page.getByRole("heading", { name: "No website" }))).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Their website" })).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });

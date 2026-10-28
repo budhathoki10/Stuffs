@@ -8,7 +8,7 @@ import { keepInputOnSubmit } from "./use-keep-input";
 export function AuditForm() {
   const [state, action, pending] = useActionState(runFreeAudit, undefined);
   return (
-    <form onSubmit={keepInputOnSubmit(action)} className="space-y-3">
+    <form onSubmit={keepInputOnSubmit(action)} className="space-y-2.5">
       <div className="flex flex-col gap-2 sm:flex-row">
         <label htmlFor="audit-url" className="sr-only">
           Business website
@@ -18,16 +18,20 @@ export function AuditForm() {
           name="url"
           type="text"
           inputMode="url"
+          autoComplete="off"
+          spellCheck={false}
           required
           defaultValue={state?.url}
-          placeholder="any-business-website.com"
-          className={`${inputClass} sm:flex-1 text-base`}
+          placeholder="joesplumbing.com"
+          className={`${inputClass} py-2.5 sm:flex-1`}
         />
-        <Button type="submit" disabled={pending} className="sm:w-44">
-          {pending ? "Checking…" : "Check website free"}
+        <Button type="submit" disabled={pending} className="py-2.5 sm:w-36">
+          {pending ? "Checking…" : "Check this site"}
         </Button>
       </div>
-      {pending && <p className="text-sm text-muted">Loading the site and running 13 checks. This takes up to 30 seconds.</p>}
+      <p className="text-[13px] text-muted">
+        {pending ? "Loading the site and running the checks. Usually 10 to 20 seconds." : "Free, no account needed."}
+      </p>
       <FormMessage error={state?.error} />
     </form>
   );
