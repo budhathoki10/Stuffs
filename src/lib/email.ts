@@ -71,3 +71,21 @@ export function resetPasswordMessage(to: string, link: string): Email {
     ),
   };
 }
+
+/** Plain notification: a heading, a few short paragraphs, and an optional link. */
+export function noticeMessage(
+  to: string,
+  subject: string,
+  heading: string,
+  paragraphs: string[],
+  link?: { label: string; url: string },
+): Email {
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const text = [heading, ...paragraphs, link ? `${link.label}: ${link.url}` : null, "Pitchcraft"].filter(Boolean).join("\n\n");
+  const html = `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;color:#1c1f1d;max-width:520px;margin:0 auto;padding:24px">
+<h1 style="font-size:20px">${esc(heading)}</h1>
+${paragraphs.map((p) => `<p style="white-space:pre-line">${esc(p)}</p>`).join("\n")}
+${link ? `<p><a href="${esc(link.url)}" style="display:inline-block;background:#1b1a17;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">${esc(link.label)}</a></p>` : ""}
+</body></html>`;
+  return { to, subject, text, html };
+}

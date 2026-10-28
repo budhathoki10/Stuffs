@@ -98,7 +98,17 @@ describe("lead data", () => {
     await addLead(user.id, "D", { status: "won", wonAmountCents: 75_000 });
     await addLead(user.id, "E", { status: "won", wonAmountCents: 30_000 });
     await addLead(user.id, "F", { status: "lost", wonAmountCents: 99_999 });
-    expect(await getStats(user.id)).toEqual({ total: 6, contacted: 5, replied: 3, won: 2, earnedCents: 105_000 });
+    await addLead(user.id, "G", { status: "won", wonAmountCents: 3_500_000, currency: "NPR" });
+    expect(await getStats(user.id)).toEqual({
+      total: 7,
+      contacted: 6,
+      replied: 4,
+      won: 3,
+      earned: [
+        { currency: "NPR", amountMinor: 3_500_000 },
+        { currency: "USD", amountMinor: 105_000 },
+      ],
+    });
   });
 
   it("lists newest days first, then best opportunities", async () => {

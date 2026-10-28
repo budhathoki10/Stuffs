@@ -1,8 +1,8 @@
 import type { User } from "@/db/schema";
 
 export const PLAN_LIMITS = {
-  free: { leadsPerDay: 5, leadsPerWeek: 5, pitchesPerWeek: 10 },
-  pro: { leadsPerDay: 5, leadsPerWeek: 35, pitchesPerWeek: 500 },
+  free: { leadsPerDay: 5, leadsPerWeek: 5, pitchesPerWeek: 10, publishedSites: 1, monitors: 1 },
+  pro: { leadsPerDay: 5, leadsPerWeek: 35, pitchesPerWeek: 500, publishedSites: 50, monitors: 50 },
 } as const;
 
 export const PRICES = {

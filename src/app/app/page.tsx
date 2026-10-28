@@ -28,7 +28,12 @@ export default async function Dashboard({ searchParams }: PageProps<"/app">) {
     { id: "leads", label: "Leads", value: stats.total },
     { id: "pitched", label: "Emailed", value: stats.contacted },
     { id: "replies", label: "Replied", value: stats.replied },
-    { id: "earned", label: "Earned from these", value: formatMoney(stats.earnedCents), money: stats.earnedCents > 0 },
+    {
+      id: "earned",
+      label: "Earned from these",
+      value: stats.earned.length ? stats.earned.map((e) => formatMoney(e.amountMinor, e.currency)).join(" + ") : formatMoney(0),
+      money: stats.earned.length > 0,
+    },
   ];
 
   return (

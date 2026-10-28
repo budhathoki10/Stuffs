@@ -22,6 +22,13 @@
       "when": 1793175423398,
       "tag": "0002_lead_details_fetched_at",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793175850305,
+      "tag": "0003_client_work",
+      "breakpoints": true
     }
   ]
 }

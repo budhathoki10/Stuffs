@@ -12,6 +12,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import type { AuditCheck, AuditMetrics } from "@/lib/audit/types";
+import type { LineItem, PaymentDetails, SiteContent } from "@/lib/work/types";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -25,6 +26,10 @@ export const users = pgTable("users", {
   // Pro access is valid until this moment. Null means never paid.
   proUntil: timestamp("pro_until", { withTimezone: true }),
   paddleSubscriptionId: text("paddle_subscription_id"),
+  /** Shown on invoices so clients pay the freelancer directly. */
+  paymentDetails: jsonb("payment_details").$type<PaymentDetails>().notNull().default({}),
+  /** Last invoice number issued; incremented atomically. */
+  invoiceSeq: integer("invoice_seq").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -108,6 +113,9 @@ export const leads = pgTable(
     opportunity: integer("opportunity").notNull().default(0),
     status: text("status").notNull().default("new"),
     wonAmountCents: integer("won_amount_cents"),
+    // Currency of wonAmountCents (the column name predates multi-currency support).
+    currency: text("currency").notNull().default("USD"),
+    followUpOn: date("follow_up_on", { mode: "string" }),
     notes: text("notes"),
     deliveredOn: date("delivered_on", { mode: "string" }).notNull(),
     // When name/address/phone/website/location were last fetched from the source.
@@ -159,3 +167,153 @@ export type User = typeof users.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type Audit = typeof audits.$inferSelect;
 export type Search = typeof searches.$inferSelect;
+
+export const quotes = pgTable(
+  "quotes",
+  {
+    // Short public id: the client opens /q/:id to accept or decline.
+    id: text("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    leadId: uuid("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    currency: text("currency").notNull(),
+    items: jsonb("items").$type<LineItem[]>().notNull(),
+    note: text("note"),
+    // draft -> sent -> accepted | declined
+    status: text("status").notNull().default("draft"),
+    validUntil: date("valid_until", { mode: "string" }).notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    respondedAt: timestamp("responded_at", { withTimezone: true }),
+    acceptedBy: text("accepted_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("quotes_lead_idx").on(t.leadId)],
+);
+
+export const sites = pgTable("sites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  leadId: uuid("lead_id")
+    .notNull()
+    .unique()
+    .references(() => leads.id, { onDelete: "cascade" }),
+  // Public address: /s/:slug
+  slug: text("slug").notNull().unique(),
+  template: text("template").notNull(),
+  content: jsonb("content").$type<SiteContent>().notNull(),
+  published: boolean("published").notNull().default(false),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Booking and contact requests sent through a published site. */
+export const siteMessages = pgTable(
+  "site_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    contact: text("contact").notNull(),
+    message: text("message").notNull(),
+    preferredDate: text("preferred_date"),
+    ipHash: text("ip_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("site_messages_site_created_idx").on(t.siteId, t.createdAt)],
+);
+
+/** A shareable before-and-after report: the site we pitched vs the site after the work. */
+export const comparisons = pgTable("comparisons", {
+  id: text("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  leadId: uuid("lead_id")
+    .notNull()
+    .references(() => leads.id, { onDelete: "cascade" }),
+  // Null when the business had no website before.
+  beforeAuditId: text("before_audit_id").references(() => audits.id, { onDelete: "set null" }),
+  afterAuditId: text("after_audit_id")
+    .notNull()
+    .references(() => audits.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const monitors = pgTable("monitors", {
+  // Short public id: the client-facing report is /m/:id
+  id: text("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  leadId: uuid("lead_id")
+    .notNull()
+    .unique()
+    .references(() => leads.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  active: boolean("active").notNull().default(true),
+  // unknown | up | down
+  status: text("status").notNull().default("unknown"),
+  consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+  lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+  lastResponseMs: integer("last_response_ms"),
+  sslExpiresAt: timestamp("ssl_expires_at", { withTimezone: true }),
+  // Which certificate expiry we already warned about, so each warning goes out once.
+  sslAlertedFor: timestamp("ssl_alerted_for", { withTimezone: true }),
+  downAlertSentAt: timestamp("down_alert_sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const monitorChecks = pgTable(
+  "monitor_checks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    monitorId: text("monitor_id")
+      .notNull()
+      .references(() => monitors.id, { onDelete: "cascade" }),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
+    ok: boolean("ok").notNull(),
+    statusCode: integer("status_code"),
+    responseMs: integer("response_ms"),
+    error: text("error"),
+  },
+  (t) => [index("monitor_checks_monitor_checked_idx").on(t.monitorId, t.checkedAt)],
+);
+
+export const invoices = pgTable(
+  "invoices",
+  {
+    // Short public id: the client opens /i/:id
+    id: text("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    leadId: uuid("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    number: text("number").notNull(),
+    currency: text("currency").notNull(),
+    items: jsonb("items").$type<LineItem[]>().notNull(),
+    note: text("note"),
+    issuedOn: date("issued_on", { mode: "string" }).notNull(),
+    dueOn: date("due_on", { mode: "string" }).notNull(),
+    // unpaid | paid | void
+    status: text("status").notNull().default("unpaid"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("invoices_user_number_uidx").on(t.userId, t.number), index("invoices_lead_idx").on(t.leadId)],
+);
+
+export type Quote = typeof quotes.$inferSelect;
+export type Site = typeof sites.$inferSelect;
+export type Monitor = typeof monitors.$inferSelect;
+export type Invoice = typeof invoices.$inferSelect;
