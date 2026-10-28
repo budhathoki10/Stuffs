@@ -18,6 +18,7 @@ const appEnv = {
   PAGESPEED_DISABLED: "1",
   ANTHROPIC_API_KEY: "",
   CRON_SECRET: "e2e-cron-secret",
+  CRON_JOB_SECRET: "e2e-cron-job-secret",
   PADDLE_WEBHOOK_SECRET: "e2e-paddle-secret",
   KHALTI_SECRET_KEY: "e2e-khalti-key",
   KHALTI_API_BASE: "http://127.0.0.1:4100/khalti",

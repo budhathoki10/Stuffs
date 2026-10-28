@@ -110,6 +110,30 @@ test("cron endpoint requires the secret", async ({ request }) => {
   expect(await monitors.json()).toMatchObject({ failed: 0 });
 });
 
+test("cron-job.org route needs its own secret, answers at once, and runs the job", async ({ request }) => {
+  const key = "e2e-cron-job-secret";
+  expect((await request.get("/api/cron-job/monitors")).status()).toBe(401);
+  expect((await request.get("/api/cron-job/monitors?key=wrong")).status()).toBe(401);
+  // The Vercel secret doesn't open the cron-job.org route.
+  expect((await request.get("/api/cron-job/monitors", { headers: { authorization: "Bearer e2e-cron-secret" } })).status()).toBe(401);
+  for (const job of ["nope", "toString", "constructor"]) {
+    expect((await request.get(`/api/cron-job/${job}?key=${key}`)).status(), job).toBe(404);
+  }
+
+  // As cron-job.org calls it: 202 straight away, work continues in the background.
+  const started = await request.get(`/api/cron-job/monitors?key=${key}`);
+  expect(started.status()).toBe(202);
+  expect(await started.json()).toMatchObject({ job: "monitors" });
+  expect((await request.post("/api/cron-job/daily", { headers: { authorization: `Bearer ${key}` } })).status()).toBe(202);
+
+  // ?wait=1 runs in the foreground and returns the result.
+  const daily = await request.get(`/api/cron-job/daily?key=${key}&wait=1`);
+  expect(daily.status()).toBe(200);
+  expect(await daily.json()).toMatchObject({ job: "daily", result: { delivered: 0, failed: 0 } });
+  const monitors = await request.get(`/api/cron-job/monitors?key=${key}&wait=1`);
+  expect(await monitors.json()).toMatchObject({ job: "monitors", result: { failed: 0 } });
+});
+
 test("a signed Paddle webhook upgrades the account to Pro", async ({ page, request }) => {
   const sql = postgres(TEST_DATABASE_URL, { max: 1 });
   const [user] = await sql`select id from users where email = ${email}`;

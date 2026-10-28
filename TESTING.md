@@ -1,12 +1,12 @@
 # Test report
 
-Run on 2026-10-28 with `npm run test:all`. 195 tests, all passing. Lint and typecheck are clean.
+Run on 2026-10-28 with `npm run test:all`. 200 tests, all passing. Lint and typecheck are clean.
 
 | Suite | What it checks | Result |
 |---|---|---|
-| Unit (`npm test`) | Pure logic: audit rules, SSRF guard, pitches, ranking, plans, payments, emails, quote pricing, client website HTML, uptime and alert rules | 122 passed |
+| Unit (`npm test`) | Pure logic: audit rules, SSRF guard, pitches, ranking, plans, payments, emails, quote pricing, client website HTML, uptime and alert rules | 126 passed |
 | Integration (`npm run test:integration`) | Real Postgres: lead delivery and limits, one-time tokens, payments, account deletion, data privacy, quotes, invoices, client sites, monitoring, follow-ups | 49 passed |
-| Browser (`npm run test:e2e`) | The built app in Chrome: every page and flow a visitor, freelancer or their client uses | 24 passed |
+| Browser (`npm run test:e2e`) | The built app in Chrome: every page and flow a visitor, freelancer or their client uses | 25 passed |
 
 ## Not covered here (needs your real accounts)
 
@@ -32,6 +32,7 @@ They get checked live after deployment.
 - rejects non-web URLs in the free audit
 - freelancer signs up, gets leads, pitches, and tracks a win
 - cron endpoint requires the secret
+- cron-job.org route needs its own secret, answers at once, and runs the job
 - a signed Paddle webhook upgrades the account to Pro
 - Khalti callback with an unknown payment is rejected
 - the emailed link confirms the address and works only once
@@ -221,6 +222,14 @@ They get checked live after deployment.
 - verification and reset emails contain the link in text and HTML
 - sends through Resend when a key is set
 - reports Resend errors
+
+**cron.test.ts › secretMatches**
+- compares exactly, whatever the lengths
+- refuses everything when no secret is configured
+
+**cron.test.ts › cron-job.org authentication**
+- accepts the secret as a Bearer header or a ?key= parameter
+- keeps the Vercel secret and the cron-job.org secret separate
 
 **google.test.ts › boundingBox**
 - is centred on the search point and roughly radius-sized
