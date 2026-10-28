@@ -1,11 +1,11 @@
 # Test report
 
-Run on 2026-10-28 with `npm run test:all`. 118 tests, all passing. Lint and typecheck are clean.
+Run on 2026-10-28 with `npm run test:all`. 137 tests, all passing. Lint and typecheck are clean.
 
 | Suite | What it checks | Result |
 |---|---|---|
-| Unit (`npm test`) | Pure logic: audit rules, SSRF guard, pitches, ranking, plans, payments, emails | 70 passed |
-| Integration (`npm run test:integration`) | Real Postgres: lead delivery and limits, one-time tokens, payments, account deletion, data privacy | 27 passed |
+| Unit (`npm test`) | Pure logic: audit rules, SSRF guard, pitches, ranking, plans, payments, emails | 84 passed |
+| Integration (`npm run test:integration`) | Real Postgres: lead delivery and limits, one-time tokens, payments, account deletion, data privacy | 32 passed |
 | Browser (`npm run test:e2e`) | The built app in Chrome: every page and flow a visitor or freelancer uses | 21 passed |
 
 ## Not covered here (needs your real accounts)
@@ -90,6 +90,15 @@ They get checked live after deployment.
 - signs out every device
 - deleting a user removes all of their data
 
+**integration/google.test.ts › Google 30-day refresh**
+- only refreshes Google leads older than 29 days
+- clears cached Google content when the place no longer exists, keeping the user's notes
+- counts failures without stopping the rest
+
+**integration/google.test.ts › lead delivery from Google**
+- buys only one page of results when it already has enough new businesses
+- stores Google businesses, skips closed ones, and audits their real websites
+
 ## Unit tests
 
 **billing.test.ts › verifyPaddleSignature**
@@ -148,6 +157,45 @@ They get checked live after deployment.
 - audits a working site
 - refuses private hosts when the override is off
 
+**google.test.ts › boundingBox**
+- is centred on the search point and roughly radius-sized
+- clamps the radius to 1 to 50 km
+
+**google.test.ts › textSearchBody**
+- restricts to the niche's Google type inside the box
+
+**google.test.ts › googleProvider.findBusinesses**
+- sends the key and a field mask, and maps places to businesses
+- skips businesses that have closed
+- pages only until it has enough businesses the user hasn't seen
+- never asks for more than 3 pages
+- explains Google's errors
+- refuses to run without a key
+
+**google.test.ts › googleProvider.geocode**
+- turns a city into coordinates
+- returns null for a place Google can't find
+
+**google.test.ts › placeDetails**
+- fetches one place by id
+- returns null when the place no longer exists
+
+**google.test.ts › leadProvider**
+- uses Google when a key is set, OpenStreetMap otherwise, and honours LEADS_PROVIDER
+
+**leads.test.ts › Overpass**
+- builds a query for every tag of the niche
+- clamps the radius
+- parses nodes and ways into businesses
+
+**leads.test.ts › opportunityScore**
+- ranks businesses without a website highest for web developers
+- rewards problems that match the freelancer's skill
+- treats a broken site as a strong lead
+
+**leads.test.ts › weekStart**
+- returns the Monday of the week
+
 **core.test.ts › plans**
 - Pro is active only before its end date
 - free users get weekly limits, Pro users get daily leads
@@ -176,19 +224,6 @@ They get checked live after deployment.
 - verification and reset emails contain the link in text and HTML
 - sends through Resend when a key is set
 - reports Resend errors
-
-**leads.test.ts › Overpass**
-- builds a query for every tag of the niche
-- clamps the radius
-- parses nodes and ways into businesses
-
-**leads.test.ts › opportunityScore**
-- ranks businesses without a website highest for web developers
-- rewards problems that match the freelancer's skill
-- treats a broken site as a strong lead
-
-**leads.test.ts › weekStart**
-- returns the Monday of the week
 
 **pitch.test.ts › templatePitch**
 - builds on the top audit issue and signs with the freelancer's name

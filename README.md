@@ -11,7 +11,7 @@ Screenshots of the [dashboard](docs/screenshots/desktop-dashboard.png), a [lead]
 ## How it works
 
 1. A freelancer picks a skill, a type of business and a city.
-2. Every morning a cron job pulls matching businesses from OpenStreetMap and fetches each website. It runs 13 checks (HTTPS, mobile viewport, response time, title, description, contact links, booking, footer year and so on), plus Google PageSpeed when a key is set.
+2. Every morning a cron job pulls matching businesses from Google Maps (or OpenStreetMap, if no Google key is set) and fetches each website. It runs 13 checks (HTTPS, mobile viewport, response time, title, description, contact links, booking, footer year and so on), plus Google PageSpeed when a key is set.
 3. The businesses are ranked for that freelancer's skill. A web designer sees businesses with no website first. An SEO freelancer sees sites Google can barely read.
 4. For each lead the freelancer can draft an email. Claude writes it from the audit findings; without an API key, a hand-written template per finding does the job. The email links to a public report the owner can open.
 5. The freelancer sends it from Gmail or their own mail app and tracks the lead through a pipeline. A won project's value adds to the "earned" figure on the dashboard.
@@ -31,7 +31,7 @@ src/
   db/                 Drizzle schema and client
   lib/
     audit/            SSRF-safe fetch, HTML checks, scoring, PageSpeed
-    leads/            OpenStreetMap and mock providers, niches, ranking
+    leads/            Google Places, OpenStreetMap and mock providers, niches, ranking
     pitch/            Claude pitch writer and template fallback
     billing/          Paddle signature checks and cancellation, Khalti client
     services/         database-backed operations
@@ -61,7 +61,8 @@ Every variable is listed in [`.env.example`](.env.example). These matter most:
 | Variable | Needed for |
 |---|---|
 | `DATABASE_URL`, `APP_URL`, `CRON_SECRET` | Always |
-| `OSM_CONTACT_EMAIL` | OpenStreetMap's usage policy asks for a contact address |
+| `GOOGLE_MAPS_API_KEY` | Finding businesses on Google Maps. Without it the app falls back to OpenStreetMap. |
+| `OSM_CONTACT_EMAIL` | Only with OpenStreetMap, whose usage policy asks for a contact address |
 | `ANTHROPIC_API_KEY`, `PITCH_MODEL` | AI-written emails. Defaults to `claude-opus-5-5`, about a cent per draft. `claude-haiku-5-5` costs far less. |
 | `PAGESPEED_API_KEY` | Google's phone speed score. The keyless quota is tiny. |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Password resets and email confirmation |
@@ -89,6 +90,16 @@ Paddle reviews `/terms`, `/privacy` and `/refund` during approval.
 
 **Resend.** Verify your sending domain, then set `RESEND_API_KEY` and `EMAIL_FROM`.
 
+**Google Maps.**
+1. In Google Cloud Console, create a project and attach a billing account. Google requires a card even for free usage.
+2. Enable **Places API (New)**. The older "Places API" is a different product and won't work.
+3. Under Credentials, create an API key. Restrict it to Places API (New) and keep it server-side. Then set `GOOGLE_MAPS_API_KEY`.
+4. Set a daily quota on the API in Cloud Console, so a bug can't run up a bill.
+
+Cost: searches ask for website and phone, so they're billed at the Enterprise rate, about $35 per 1,000 requests after the first 1,000 free each month. One delivery uses 1 to 3 requests, so a Pro user costs roughly $1 to $3 a month.
+
+Google only allows its business details to be cached for 30 days. The daily job re-fetches Google leads older than 29 days, and so does opening one. Pages that show Google data credit Google Maps.
+
 ## Security notes
 
 - The audit fetcher only reaches public addresses. It checks every redirect, and it checks the resolved IP when it connects, so DNS rebinding can't reach internal services.
@@ -111,7 +122,8 @@ npm run test:all          # all of the above, plus lint and typecheck
 
 ## Known limitations
 
-- OpenStreetMap coverage varies by city, and many listings have no email address. The lead page then suggests calling or using the business's contact form. Google Places would make a good second source.
+- Neither Google nor OpenStreetMap provides email addresses. The audit looks for one on the business's own site; when there isn't one, the lead page suggests calling or using the contact form.
+- Google Text Search returns at most 60 businesses per search. Once a user has seen them all, they need a wider distance or another business type.
 - Email confirmation is a reminder, not a gate. If fake signups become a problem, require `emailVerifiedAt` before delivering leads.
 - Lead delivery runs one user at a time to stay within OpenStreetMap's fair-use policy. With many users it should move to a queue, probably with a paid Overpass instance.
 - The legal pages are a plain-language starting point. Have a lawyer read them before you grow.

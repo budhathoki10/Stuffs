@@ -1,7 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { deliverLeads } from "@/lib/services/delivery";
+import { refreshStaleGoogleLeads } from "@/lib/services/google-refresh";
 
 export const maxDuration = 300;
 
@@ -21,19 +22,22 @@ export async function GET(request: Request) {
     .from(schema.searches)
     .where(eq(schema.searches.active, true));
   const userIds = [...new Set(searches.map((s) => s.userId))];
-  if (userIds.length === 0) return Response.json({ users: 0, delivered: 0 });
+  const users = userIds.length ? await db.select().from(schema.users).where(inArray(schema.users.id, userIds)) : [];
 
-  const users = await db.select().from(schema.users).where(and(inArray(schema.users.id, userIds)));
   let delivered = 0;
-  const failures: string[] = [];
-  // Sequential on purpose: OpenStreetMap's public servers ask for gentle usage.
+  let failed = 0;
+  // One user at a time: OpenStreetMap asks for gentle usage, and it keeps Google spend predictable.
   for (const user of users) {
     try {
       delivered += (await deliverLeads(user)).delivered;
     } catch (err) {
       console.error(`Daily leads failed for ${user.id}`, err);
-      failures.push(user.id);
+      failed++;
     }
   }
-  return Response.json({ users: users.length, delivered, failed: failures.length });
+
+  // Google Places content may only be cached for 30 days.
+  const google = process.env.GOOGLE_MAPS_API_KEY ? await refreshStaleGoogleLeads() : { refreshed: 0, failed: 0 };
+
+  return Response.json({ users: users.length, delivered, failed, googleRefreshed: google.refreshed, googleRefreshFailed: google.failed });
 }

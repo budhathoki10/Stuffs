@@ -1,6 +1,7 @@
 import { AuditForm } from "@/components/audit-form";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { ButtonLink, Eyebrow, FormMessage } from "@/components/ui";
+import { leadSourceName } from "@/lib/leads";
 import { PLAN_LIMITS, PRICES } from "@/lib/plans";
 
 const EXAMPLE_LEADS = [
@@ -11,14 +12,25 @@ const EXAMPLE_LEADS = [
   { name: "Oak & Pine Florist", problem: "Footer still says © 2016", score: 58 },
 ];
 
+const SOURCE_FAQ = {
+  google: {
+    q: "Where do the businesses come from?",
+    a: "Google Maps, filtered by the type of business you pick and the distance from your city. Phone numbers and websites come from the Google listing; email addresses come from the business's own site when it lists one.",
+  },
+  osm: {
+    q: "Where do the businesses come from?",
+    a: "OpenStreetMap, filtered by the type of business you pick and the distance from your city. Contact details come from the map listing or the business's own site. Coverage is good in most cities and patchy in some small towns.",
+  },
+  mock: {
+    q: "Where do the businesses come from?",
+    a: "This copy of Pitchcraft is running with sample businesses for testing.",
+  },
+};
+
 const FAQ = [
   {
     q: "Isn't this just cold email?",
     a: "It's one email, written to one owner, about one problem you can see on their site. You send it yourself, from your own address. Pitchcraft never sends anything on your behalf, and there's no bulk sending.",
-  },
-  {
-    q: "Where do the businesses come from?",
-    a: "OpenStreetMap, filtered by the type of business you pick and the distance from your city. Contact details come from the map listing or the business's own site. Coverage is good in most cities and patchy in some small towns.",
   },
   {
     q: "Do I need a portfolio?",
@@ -185,7 +197,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <section className="mx-auto max-w-5xl px-5 py-20">
           <h2 className="font-serif text-4xl font-medium tracking-tight">Questions</h2>
           <dl className="mt-10 grid gap-x-12 gap-y-8 md:grid-cols-2">
-            {FAQ.map((f) => (
+            {[SOURCE_FAQ[leadSourceName()], ...FAQ].map((f) => (
               <div key={f.q}>
                 <dt className="font-medium">{f.q}</dt>
                 <dd className="mt-1.5 text-muted">{f.a}</dd>

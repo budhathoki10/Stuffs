@@ -44,8 +44,8 @@ export default function TermsPage() {
 
       <h2>Accuracy</h2>
       <p>
-        Website checks are automated estimates and can be wrong. Business details come from OpenStreetMap and the
-        businesses&apos; own websites, and may be out of date. AI-drafted pitches can contain mistakes: please read and
+        Website checks are automated estimates and can be wrong. Business details come from Google Maps or OpenStreetMap
+        and the businesses&apos; own websites, and may be out of date. AI-drafted pitches can contain mistakes: please read and
         edit them before sending. We don&apos;t promise that you will win any client or earn any amount.
       </p>
 
