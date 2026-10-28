@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fafaf7;
+  --surface: #ffffff;
+  --foreground: #1c1f1d;
+  --muted: #5f6660;
+  --border: #e3e5df;
+  --accent: #157a4a;
+  --accent-strong: #0f5f39;
+  --accent-soft: #e5f3ea;
+  --danger: #b4321f;
+  --danger-soft: #fbeae6;
+  --warn: #9a6200;
+  --warn-soft: #fdf2dc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #101311;
+    --surface: #171b18;
+    --foreground: #e9ece8;
+    --muted: #a2aaa3;
+    --border: #2a302b;
+    --accent: #3cc47f;
+    --accent-strong: #5fd697;
+    --accent-soft: #15301f;
+    --danger: #f08a78;
+    --danger-soft: #3a1a14;
+    --warn: #f0b85a;
+    --warn-soft: #34270f;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+input,
+select,
+textarea {
+  color: var(--foreground);
+  background: var(--surface);
+}
