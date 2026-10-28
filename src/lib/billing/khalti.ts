@@ -1,6 +1,8 @@
 // Khalti ePayment (KPG-2) client: https://docs.khalti.com/khalti-epayment/
 
 function baseUrl() {
+  // KHALTI_API_BASE points tests at a local fake Khalti.
+  if (process.env.KHALTI_API_BASE) return process.env.KHALTI_API_BASE;
   return process.env.KHALTI_ENV === "production" ? "https://khalti.com/api/v2" : "https://dev.khalti.com/api/v2";
 }
 

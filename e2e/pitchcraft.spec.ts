@@ -1,31 +1,11 @@
 import { createHmac } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import postgres from "postgres";
-import { EMAIL_OUTBOX, TEST_DATABASE_URL } from "../playwright.config";
+import { TEST_DATABASE_URL } from "../playwright.config";
+import { latestEmailLink, logIn, PASSWORD as password } from "./helpers";
 
 const email = `freelancer-${Date.now()}@example.com`;
-const password = "correct-horse-battery";
 const newPassword = "even-better-passphrase";
-
-async function logIn(page: Page, address: string, pass: string) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(address);
-  await page.getByLabel("Password").fill(pass);
-  await page.getByRole("button", { name: "Log in" }).click();
-}
-
-/** The link in the newest email sent to `to` whose subject contains `subject`. */
-function latestEmailLink(to: string, subject: string): string {
-  const emails = readFileSync(EMAIL_OUTBOX, "utf8")
-    .trim()
-    .split("\n")
-    .map((line) => JSON.parse(line) as { to: string; subject: string; text: string })
-    .filter((e) => e.to === to && e.subject.includes(subject));
-  const link = emails.at(-1)?.text.match(/https?:\/\/\S+/)?.[0];
-  if (!link) throw new Error(`No "${subject}" email for ${to}`);
-  return link;
-}
 
 test.describe.configure({ mode: "serial" });
 
@@ -115,6 +95,7 @@ test("freelancer signs up, gets leads, pitches, and tracks a win", async ({ page
 
 test("cron endpoint requires the secret", async ({ request }) => {
   expect((await request.get("/api/cron/daily-leads")).status()).toBe(401);
+  expect((await request.get("/api/cron/daily-leads", { headers: { authorization: "Bearer wrong" } })).status()).toBe(401);
   const res = await request.get("/api/cron/daily-leads", { headers: { authorization: "Bearer e2e-cron-secret" } });
   expect(res.status()).toBe(200);
   // The only user already received this week's free leads.

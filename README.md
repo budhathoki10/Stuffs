@@ -95,22 +95,17 @@ See [`.env.example`](.env.example) for all of them. The important ones:
 
 ```bash
 npm run lint && npm run typecheck
-npm test               # 51 unit tests: audit, SSRF guard, pitch, OpenStreetMap parsing, ranking, Paddle and Khalti
-npm run test:e2e       # 11 browser tests: builds the app and runs every flow against a test database
+npm test                  # 70 unit tests: pure logic, no database needed
+npm run test:integration  # 27 tests against a real Postgres database
+npm run test:e2e          # 21 browser tests: builds the app and drives it in Chrome
+npm run test:all          # all of the above plus lint and typecheck
 ```
 
-The browser tests cover:
-- Free audit and sample pitch.
-- Signup → leads → pitch → won.
-- Cron.
-- Paddle webhook.
-- Khalti callback.
-- Email confirmation.
-- Password reset.
-- Legal pages.
-- Account deletion.
+[`TESTING.md`](TESTING.md) lists every test and its latest result.
 
-The end-to-end suite needs Postgres. By default it uses `postgres://pitchcraft:pitchcraft@localhost:5432/pitchcraft_test`; override it with `TEST_DATABASE_URL`. It uses fake businesses and local fixture websites, so it needs no internet access.
+- **Integration tests** create `pitchcraft_integration` automatically. Override it with `INTEGRATION_DATABASE_URL`.
+- **Browser tests** use `pitchcraft_test`. Override it with `TEST_DATABASE_URL`.
+- **No internet needed:** both use fake businesses, local fixture websites and a fake Khalti server.
 
 ## Project structure
 
