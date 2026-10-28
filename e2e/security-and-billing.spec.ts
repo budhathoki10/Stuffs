@@ -157,7 +157,7 @@ test.describe("on a phone", () => {
 
     await logIn(page, bob, PASSWORD);
     await expect(page).toHaveURL(/\/app$/);
-    for (const path of ["/app", "/app/pipeline", "/app/clients", "/app/settings", "/app/billing"]) await fits(path);
+    for (const path of ["/app", "/app/inbox", "/app/pipeline", "/app/clients", "/app/settings", "/app/billing"]) await fits(path);
     await page.goto("/app");
     await page.getByRole("link", { name: /Dentist/ }).first().click();
     await expect(page.getByRole("heading", { name: "Their website" })).toBeVisible();

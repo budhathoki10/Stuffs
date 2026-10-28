@@ -33,13 +33,13 @@ const AFTER_YES = [
   ["Show the result", "A before-and-after report: the score you found and the score now, problem by problem."],
   ["Sell a care plan", "We check the site every 10 minutes and warn you before an outage or an expiring certificate costs them customers."],
   ["Get paid directly", "Invoices carry your eSewa, Khalti, bank or Payoneer details. The money goes straight to you."],
-  ["Never forget to follow up", "Each sent email or quote sets a reminder, and your Today page lists who to chase."],
+  ["Never forget to follow up", "Each sent email or quote sets a reminder. The follow-up is drafted for you, and replies land in your inbox here."],
 ] as const;
 
 const FAQ = [
   {
     q: "Isn't this just cold email?",
-    a: "It's one email, written to one owner, about one problem you can see on their site. You send it yourself, from your own address. Pitchcraft never sends anything on your behalf, and there's no bulk sending.",
+    a: "It's one email, written to one owner, about one problem you can see on their site. You read it, edit it and press send yourself; nothing goes out automatically, and there's no bulk sending. Every first email has a one-click opt-out, and anyone who opts out is never emailed through Pitchcraft again.",
   },
   {
     q: "Do I need a portfolio?",
@@ -129,8 +129,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 <p className="mt-2 text-muted">
                   It opens with something the owner can check in ten seconds, like &ldquo;your site takes seven seconds to
                   load on a phone&rdquo;, and links to a one-page report that shows it. No templates about
-                  &ldquo;taking your business to the next level&rdquo;. Edit it, then send it from Gmail or your own mail
-                  app.
+                  &ldquo;taking your business to the next level&rdquo;. Edit it and send it from Pitchcraft. Their reply comes
+                  back to your inbox here.
                 </p>
               </div>
             </div>

@@ -1,5 +1,6 @@
 // Tiny static server for fake business websites used by tests and LEADS_PROVIDER=mock.
-// It also plays a fake Khalti under /khalti so payment tests run without the internet.
+// It also plays a fake Khalti under /khalti and a fake Resend under /resend, so payment and
+// email tests run without the internet.
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -50,9 +51,38 @@ async function fakeKhalti(req, res, url) {
   return json(res, 404, { detail: "Not found." });
 }
 
+/** Emails "sent" through the fake Resend, and received emails tests put in place to be fetched. */
+const resendSent = [];
+const resendReceived = new Map();
+
+async function fakeResend(req, res, url) {
+  // Test helpers: no auth.
+  if (url.pathname === "/resend/_inbound" && req.method === "POST") {
+    const email = await readJson(req);
+    resendReceived.set(email.id, email);
+    return json(res, 200, { ok: true });
+  }
+  if (url.pathname === "/resend/_sent") return json(res, 200, resendSent);
+
+  if (!/^Bearer \S+/.test(req.headers.authorization ?? "")) return json(res, 401, { message: "Missing API key" });
+  if (url.pathname === "/resend/emails" && req.method === "POST") {
+    const body = await readJson(req);
+    const id = `re_fake_${resendSent.length + 1}`;
+    resendSent.push({ id, ...body });
+    return json(res, 200, { id });
+  }
+  const received = url.pathname.match(/^\/resend\/emails\/receiving\/([^/]+)$/);
+  if (received) {
+    const email = resendReceived.get(decodeURIComponent(received[1]));
+    return email ? json(res, 200, email) : json(res, 404, { message: "Not found" });
+  }
+  return json(res, 404, { message: "Not found" });
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://localhost:${port}`);
   if (url.pathname.startsWith("/khalti/")) return fakeKhalti(req, res, url);
+  if (url.pathname.startsWith("/resend/")) return fakeResend(req, res, url);
   if (url.pathname === "/redirect") {
     res.writeHead(301, { location: "/good.html" });
     return res.end();

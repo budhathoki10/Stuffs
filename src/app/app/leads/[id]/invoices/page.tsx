@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { invoiceStatus } from "@/app/actions/work";
 import { InvoiceForm } from "@/components/workspace/invoice-form";
+import { ShareLink } from "@/components/workspace/share-link";
 import { Badge, Button } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import { addDays, formatDay } from "@/lib/dates";
@@ -11,6 +12,7 @@ import { today } from "@/lib/plans";
 import { invoicesForLead } from "@/lib/services/invoices";
 import { ownedLead } from "@/lib/services/leads";
 import { quoteForLead } from "@/lib/services/quotes";
+import { appUrl } from "@/lib/util";
 import { currencyForAddress } from "@/lib/work/pricing";
 import { hasPaymentDetails, lineItemsTotal } from "@/lib/work/types";
 
@@ -70,13 +72,24 @@ export default async function InvoicesTab({ params }: PageProps<"/app/leads/[id]
                       </Button>
                     )}
                   </form>
+                  {inv.status === "unpaid" && (
+                    <div className="w-full">
+                      <ShareLink
+                        url={appUrl(`/i/${inv.id}`)}
+                        to={lead.email}
+                        subject={`Invoice ${inv.number} from ${user.name}`}
+                        body={`Hi,\n\nHere's invoice ${inv.number} for ${formatMoney(lineItemsTotal(inv.items), inv.currency)}, due ${formatDay(inv.dueOn)}. Payment details are on the invoice:`}
+                        email={{ leadId: lead.id, kind: "invoice", signoff: `Thank you,\n${user.name}` }}
+                      />
+                    </div>
+                  )}
                 </li>
               );
             })}
           </ul>
         )}
         <p className="mt-3 text-[13px] text-muted">
-          Open an invoice to copy its link, send it on WhatsApp or print it as a PDF. Clients pay you directly; Pitchcraft never handles the
+          Email an invoice from here, send it on WhatsApp, or open it to print a PDF. Clients pay you directly; Pitchcraft never handles the
           money. Mark it paid when it arrives.
         </p>
       </section>

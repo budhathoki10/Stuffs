@@ -93,8 +93,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/app">) {
                     {lead.email && ` · ${lead.email}`}
                   </p>
                 </div>
-                <form action={followUpAction} className="flex gap-1">
+                <form action={followUpAction} className="flex items-center gap-1">
                   <input type="hidden" name="leadId" value={lead.id} />
+                  <ButtonLink href={`/app/leads/${lead.id}#conversation`} className="py-1">
+                    Write follow-up
+                  </ButtonLink>
                   <Button type="submit" name="op" value="done" variant="secondary" className="py-1">
                     Done
                   </Button>

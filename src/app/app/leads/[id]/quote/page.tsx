@@ -104,7 +104,8 @@ export default async function QuoteTab({ params }: PageProps<"/app/leads/[id]/qu
             url={url}
             to={lead.email}
             subject={`Quote for ${lead.name}`}
-            body={`Hi,\n\nHere's the quote we talked about (${total}). You can accept it from the page.`}
+            body={`Hi,\n\nHere's the quote we talked about (${total}). You can read it and accept it here:`}
+            email={{ leadId: lead.id, kind: "quote", quoteId: quote.id, signoff: `Thanks,\n${user.name}` }}
           />
         </div>
         {quote.status === "draft" && (

@@ -32,6 +32,11 @@ export default function PrivacyPage() {
           Quotes, invoices and reports are visible to anyone with the link.
         </li>
         <li>
+          <strong>Emails:</strong> the emails you send to businesses from Pitchcraft and the replies they send back, so
+          you can see each conversation in one place. If a business opts out, bounces or reports spam, we keep its
+          address on a do-not-email list so no one emails it through Pitchcraft again.
+        </li>
+        <li>
           <strong>Visitors to client websites:</strong> when someone sends a booking request through a site built here, we
           store their name, contact details and message, email them to the business and the freelancer, and keep a hash of
           their IP address to limit spam. The business is responsible for answering them.
@@ -62,7 +67,7 @@ export default function PrivacyPage() {
           Google Maps Platform (Places API) or OpenStreetMap services (Nominatim, Overpass), which receive your target
           city and business type.
         </li>
-        <li>Resend, to send account emails, alerts, and booking requests from client websites.</li>
+        <li>Resend, to send and receive email: your emails to businesses and their replies, account emails, alerts, and booking requests from client websites.</li>
         <li>Paddle and Khalti, to take payments.</li>
       </ul>
       <p>We don&apos;t sell your personal data.</p>

@@ -8,6 +8,8 @@ export const TEST_DATABASE_URL =
 // Emails are written here instead of being sent, so tests can follow the links.
 export const EMAIL_OUTBOX = path.join(os.tmpdir(), "pitchcraft-e2e-outbox.jsonl");
 
+export const E2E_RESEND_WEBHOOK_SECRET = `whsec_${Buffer.from("e2e-resend-webhook-secret").toString("base64")}`;
+
 // The app runs against a separate database with fake businesses and local fixture websites.
 const appEnv = {
   DATABASE_URL: TEST_DATABASE_URL,
@@ -19,6 +21,9 @@ const appEnv = {
   ANTHROPIC_API_KEY: "",
   CRON_SECRET: "e2e-cron-secret",
   CRON_JOB_SECRET: "e2e-cron-job-secret",
+  REPLY_DOMAIN: "reply.pitchcraft.test",
+  OUTREACH_FROM_ADDRESS: "outreach@pitchcraft.test",
+  RESEND_WEBHOOK_SECRET: E2E_RESEND_WEBHOOK_SECRET,
   PADDLE_WEBHOOK_SECRET: "e2e-paddle-secret",
   KHALTI_SECRET_KEY: "e2e-khalti-key",
   KHALTI_API_BASE: "http://127.0.0.1:4100/khalti",

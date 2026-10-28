@@ -9,7 +9,7 @@ export default async function globalSetup() {
     stdio: "inherit",
   });
   const sql = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
-  await sql`truncate users, sessions, auth_tokens, searches, audits, leads, pitches, payments cascade`;
+  await sql`truncate users, sessions, auth_tokens, searches, audits, leads, pitches, payments, quotes, sites, site_messages, comparisons, monitors, monitor_checks, invoices, messages, suppressions cascade`;
   await sql.end();
   rmSync(EMAIL_OUTBOX, { force: true });
 }

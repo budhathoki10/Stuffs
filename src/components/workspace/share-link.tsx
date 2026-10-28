@@ -1,12 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { gmailLink } from "../pitch-view";
+import type { OutgoingKind } from "@/lib/outreach/text";
 import { Button } from "../ui";
+import { EmailComposer } from "./email-composer";
 
-/** A client-facing link with copy and "email it" shortcuts. */
-export function ShareLink({ url, to, subject, body }: { url: string; to?: string | null; subject: string; body: string }) {
+/** A client-facing link: copy it, send it on WhatsApp, or email it from the app. */
+export function ShareLink({
+  url,
+  to,
+  subject,
+  body,
+  email,
+}: {
+  url: string;
+  to?: string | null;
+  subject: string;
+  body: string;
+  /** Lets the link be emailed from inside the app, recorded on this lead's conversation. */
+  email?: { leadId: string; kind: OutgoingKind; quoteId?: string; signoff: string };
+}) {
   const [note, setNote] = useState<string | null>(null);
+  const [composing, setComposing] = useState(false);
   async function copy() {
     try {
       await navigator.clipboard.writeText(url);
@@ -31,9 +46,11 @@ export function ShareLink({ url, to, subject, body }: { url: string; to?: string
         </Button>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
-        <a href={gmailLink(to, subject, `${body}\n\n${url}`)} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
-          Email it with Gmail
-        </a>
+        {email && (
+          <button type="button" onClick={() => setComposing((c) => !c)} aria-expanded={composing} className="underline underline-offset-4">
+            {composing ? "Close email" : "Email it to them"}
+          </button>
+        )}
         <a href={`https://wa.me/?text=${encodeURIComponent(`${body}\n\n${url}`)}`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
           Send on WhatsApp
         </a>
@@ -46,6 +63,11 @@ export function ShareLink({ url, to, subject, body }: { url: string; to?: string
           </span>
         )}
       </div>
+      {email && composing && (
+        <div className="pt-2">
+          <EmailComposer leadId={email.leadId} kind={email.kind} quoteId={email.quoteId} to={to ?? null} subject={subject} body={`${body}\n\n${url}\n\n${email.signoff}`} />
+        </div>
+      )}
     </div>
   );
 }

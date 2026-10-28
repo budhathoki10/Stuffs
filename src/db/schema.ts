@@ -117,6 +117,10 @@ export const leads = pgTable(
     currency: text("currency").notNull().default("USD"),
     followUpOn: date("follow_up_on", { mode: "string" }),
     notes: text("notes"),
+    // Replies to emails sent from the app go to reply+<token>@REPLY_DOMAIN and land on this lead.
+    replyToken: text("reply_token").unique(),
+    // The business asked not to be emailed by this freelancer again.
+    optedOutAt: timestamp("opted_out_at", { withTimezone: true }),
     deliveredOn: date("delivered_on", { mode: "string" }).notNull(),
     // When name/address/phone/website/location were last fetched from the source.
     // Google only allows caching Places content for 30 days, so Google leads are refreshed before then.
@@ -317,3 +321,50 @@ export type Quote = typeof quotes.$inferSelect;
 export type Site = typeof sites.$inferSelect;
 export type Monitor = typeof monitors.$inferSelect;
 export type Invoice = typeof invoices.$inferSelect;
+
+/** Every email between a freelancer and a business, sent from the app or received as a reply. */
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    leadId: uuid("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    // out | in
+    direction: text("direction").notNull(),
+    // pitch | followup | reply | quote | invoice | report | site (outgoing); reply (incoming)
+    kind: text("kind").notNull(),
+    fromAddress: text("from_address").notNull(),
+    toAddress: text("to_address").notNull(),
+    subject: text("subject").notNull(),
+    body: text("body").notNull(),
+    // sent | failed | received | bounced
+    status: text("status").notNull(),
+    // Resend's id, used to match bounce and complaint events, and the Message-ID header for threading.
+    providerId: text("provider_id"),
+    messageIdHeader: text("message_id_header"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("messages_lead_created_idx").on(t.leadId, t.createdAt),
+    index("messages_user_direction_idx").on(t.userId, t.direction, t.createdAt),
+    uniqueIndex("messages_provider_uidx").on(t.providerId),
+  ],
+);
+
+/**
+ * Addresses nobody may email from the app: they opted out, bounced or marked us as spam.
+ * Shared across all freelancers, because every email goes out from Pitchcraft's domain.
+ */
+export const suppressions = pgTable("suppressions", {
+  email: text("email").primaryKey(),
+  // opt_out | bounce | complaint
+  reason: text("reason").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Message = typeof messages.$inferSelect;

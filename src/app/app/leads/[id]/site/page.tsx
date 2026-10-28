@@ -59,7 +59,8 @@ export default async function SiteTab({ params }: PageProps<"/app/leads/[id]/sit
               url={url}
               to={site.content.email || lead.email}
               subject={`Your new website is live`}
-              body={`Hi,\n\nYour new website is live. Have a look and tell me what you'd like changed.`}
+              body={`Hi,\n\nYour new website is live. Have a look and tell me what you'd like changed:`}
+              email={{ leadId: lead.id, kind: "site", signoff: `Thanks,\n${user.name}` }}
             />
           ) : (
             <p className="text-sm text-muted">

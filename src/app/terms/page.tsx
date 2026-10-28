@@ -17,8 +17,10 @@ export default function TermsPage() {
       <h2>What Pitchcraft does</h2>
       <p>
         Pitchcraft suggests local businesses you may want to offer your services to, runs automated checks on their
-        public websites, and drafts outreach emails for you to edit and send yourself. We don&apos;t send email on your
-        behalf, take a share of your earnings, or take part in any deal between you and a business.
+        public websites, drafts outreach emails, and gives you tools to quote, build websites, monitor them and invoice.
+        When you press send, we deliver your email as &ldquo;your name via Pitchcraft&rdquo; and route replies back to
+        you. We only send what you write and choose to send; we don&apos;t take a share of your earnings or take part
+        in any deal between you and a business.
       </p>
 
       <h2>Your account</h2>
@@ -38,6 +40,11 @@ export default function TermsPage() {
           someone asks you to.
         </li>
         <li>Not use reports or pitches to mislead, threaten or pressure anyone.</li>
+        <li>
+          Accept the sending limits: a daily cap, at most three unanswered emails to one business, and no email to anyone
+          who opted out, bounced or reported spam. Opt-outs apply to every Pitchcraft user, because all mail goes out from
+          our domain.
+        </li>
         <li>Not try to break, overload, or scrape the service, or audit websites you have no business reason to check.</li>
       </ul>
       <p>We may suspend accounts that break these rules.</p>
