@@ -4,6 +4,10 @@ Pitchcraft finds local businesses whose websites are losing them customers, audi
 
 The market research behind the idea is in [`research/consumer-earning-app-research.md`](research/consumer-earning-app-research.md).
 
+![Home page](docs/screenshots/desktop-landing.png)
+
+Screenshots of the [dashboard](docs/screenshots/desktop-dashboard.png), a [lead](docs/screenshots/desktop-lead.png) and the [home page on a phone](docs/screenshots/mobile-landing.png) are in `docs/screenshots`.
+
 ## How it works
 
 1. A freelancer picks a skill, a type of business and a city.
