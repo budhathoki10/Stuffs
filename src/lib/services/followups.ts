@@ -2,11 +2,11 @@ import "server-only";
 import { and, asc, eq, inArray, isNotNull, lte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { noticeMessage, sendEmail } from "@/lib/email";
+import { CHASE_STATUSES } from "@/lib/leads/status";
 import { today } from "@/lib/plans";
 import { appUrl } from "@/lib/util";
 
-/** Leads still in play: anything else doesn't need chasing. */
-export const CHASE_STATUSES = ["sent", "replied", "call"] as const;
+export { CHASE_STATUSES };
 
 export function dueFollowUps(userId: string, day = today()) {
   return db

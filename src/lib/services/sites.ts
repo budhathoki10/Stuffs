@@ -145,3 +145,13 @@ export function messagesForSite(userId: string, siteId: string) {
     .orderBy(desc(schema.siteMessages.createdAt))
     .limit(50);
 }
+
+export async function ownedSite(userId: string, siteId: string): Promise<Site | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(siteId)) return null;
+  const [s] = await db
+    .select()
+    .from(schema.sites)
+    .where(and(eq(schema.sites.id, siteId), eq(schema.sites.userId, userId)))
+    .limit(1);
+  return s ?? null;
+}

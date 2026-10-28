@@ -95,3 +95,17 @@ export function parseAmount(input: string): number | null {
 export function amountInputValue(minor: number): string {
   return String(minor / 100);
 }
+
+const CURRENCY_HINTS: [RegExp, Currency][] = [
+  [/nepal|kathmandu|lalitpur|bhaktapur|pokhara|biratnagar|chitwan|butwal/i, "NPR"],
+  [/india|delhi|mumbai|bengaluru|bangalore|kolkata|chennai/i, "INR"],
+  [/united kingdom|england|scotland|wales|london|\buk\b/i, "GBP"],
+  [/australia|sydney|melbourne|brisbane|perth/i, "AUD"],
+  [/germany|france|spain|italy|netherlands|ireland|portugal|austria|belgium/i, "EUR"],
+];
+
+/** Best guess at the client's currency from their address, so the first quote is priced locally. */
+export function currencyForAddress(address: string | null | undefined): Currency {
+  if (address) for (const [re, c] of CURRENCY_HINTS) if (re.test(address)) return c;
+  return "USD";
+}

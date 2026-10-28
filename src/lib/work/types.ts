@@ -67,3 +67,8 @@ export type SiteTemplate = keyof typeof SITE_TEMPLATES;
 export function lineItemsTotal(items: Pick<LineItem, "amountMinor">[]): number {
   return items.reduce((sum, i) => sum + i.amountMinor, 0);
 }
+
+/** True when the freelancer has told us at least one way to get paid. */
+export function hasPaymentDetails(d: PaymentDetails): boolean {
+  return Object.entries(d).some(([k, v]) => k !== "qrLabel" && typeof v === "string" && v.trim() !== "");
+}

@@ -1,21 +1,15 @@
-import { timingSafeEqual } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { cronAuthorized } from "@/lib/cron";
 import { deliverLeads } from "@/lib/services/delivery";
+import { sendFollowUpDigests } from "@/lib/services/followups";
 import { refreshStaleGoogleLeads } from "@/lib/services/google-refresh";
 
 export const maxDuration = 300;
 
-function authorized(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const given = request.headers.get("authorization") ?? "";
-  const expected = `Bearer ${secret}`;
-  return !!secret && given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
-}
-
-/** Called once a day (see vercel.json) to deliver fresh leads to every user with a search. */
+/** Called once a day (see vercel.json): fresh leads for every user with a search, then follow-up reminders. */
 export async function GET(request: Request) {
-  if (!authorized(request)) return new Response("Unauthorized", { status: 401 });
+  if (!cronAuthorized(request)) return new Response("Unauthorized", { status: 401 });
 
   const searches = await db
     .select({ userId: schema.searches.userId })
@@ -39,5 +33,14 @@ export async function GET(request: Request) {
   // Google Places content may only be cached for 30 days.
   const google = process.env.GOOGLE_MAPS_API_KEY ? await refreshStaleGoogleLeads() : { refreshed: 0, failed: 0 };
 
-  return Response.json({ users: users.length, delivered, failed, googleRefreshed: google.refreshed, googleRefreshFailed: google.failed });
+  const followUps = await sendFollowUpDigests();
+
+  return Response.json({
+    users: users.length,
+    delivered,
+    failed,
+    googleRefreshed: google.refreshed,
+    googleRefreshFailed: google.failed,
+    followUpEmails: followUps.sent,
+  });
 }

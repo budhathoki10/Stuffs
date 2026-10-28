@@ -25,7 +25,7 @@ export async function latestComparison(userId: string, leadId: string) {
 
 export async function publicComparison(id: string) {
   const [row] = await db
-    .select({ comparison: schema.comparisons, business: schema.leads.name, freelancer: { name: schema.users.name, portfolioUrl: schema.users.portfolioUrl } })
+    .select({ comparison: schema.comparisons, business: schema.leads.name, freelancer: { name: schema.users.name, email: schema.users.email, portfolioUrl: schema.users.portfolioUrl } })
     .from(schema.comparisons)
     .innerJoin(schema.leads, eq(schema.leads.id, schema.comparisons.leadId))
     .innerJoin(schema.users, eq(schema.users.id, schema.comparisons.userId))

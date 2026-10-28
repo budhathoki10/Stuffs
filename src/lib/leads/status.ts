@@ -9,3 +9,6 @@ export const STATUS_LABELS: Record<LeadStatus, string> = {
   won: "Won",
   lost: "Not interested",
 };
+
+/** Leads still in play, which get follow-up reminders. Anything else doesn't need chasing. */
+export const CHASE_STATUSES = ["sent", "replied", "call"] as const satisfies readonly LeadStatus[];

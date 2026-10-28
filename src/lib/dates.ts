@@ -11,6 +11,6 @@ export function addDays(day: string | Date, n: number): string {
 }
 
 /** "28 Oct 2026" */
-export function formatDay(day: string): string {
-  return new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+export function formatDay(day: string | Date): string {
+  return (typeof day === "string" ? new Date(`${day}T00:00:00Z`) : day).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
