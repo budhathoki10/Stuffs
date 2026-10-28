@@ -6,7 +6,7 @@ The market research behind the idea is in [`research/consumer-earning-app-resear
 
 ![Home page](docs/screenshots/desktop-landing.png)
 
-Screenshots of the [dashboard](docs/screenshots/desktop-dashboard.png), a [lead](docs/screenshots/desktop-lead.png) and the [home page on a phone](docs/screenshots/mobile-landing.png) are in `docs/screenshots`, along with the client work: [quote](docs/screenshots/desktop-quote.png) and [what the client sees](docs/screenshots/desktop-client-quote.png), [site builder](docs/screenshots/desktop-site-builder.png) and [the finished site](docs/screenshots/desktop-client-site.png), [results and care plan](docs/screenshots/desktop-care.png), [before-and-after report](docs/screenshots/desktop-client-before-after.png), [invoice](docs/screenshots/desktop-client-invoice.png) and [clients](docs/screenshots/desktop-clients.png).
+Screenshots of the [dashboard](docs/screenshots/desktop-dashboard.png), a [lead](docs/screenshots/desktop-lead.png) and the [home page on a phone](docs/screenshots/mobile-landing.png) are in `docs/screenshots`, along with the client work: [quote](docs/screenshots/desktop-quote.png) and [what the client sees](docs/screenshots/desktop-client-quote.png), [site builder](docs/screenshots/desktop-site-builder.png) and [the finished site](docs/screenshots/desktop-client-site.png), [results and care plan](docs/screenshots/desktop-care.png), [before-and-after report](docs/screenshots/desktop-client-before-after.png), [invoice](docs/screenshots/desktop-client-invoice.png), [clients](docs/screenshots/desktop-clients.png), [a conversation](docs/screenshots/desktop-conversation.png) and the [inbox](docs/screenshots/desktop-inbox.png).
 
 ## How it works
 
@@ -14,7 +14,7 @@ Screenshots of the [dashboard](docs/screenshots/desktop-dashboard.png), a [lead]
 2. Every morning a cron job pulls matching businesses from Google Maps (or OpenStreetMap, if no Google key is set) and fetches each website. It runs 13 checks (HTTPS, mobile viewport, response time, title, description, contact links, booking, footer year and so on), plus Google PageSpeed when a key is set.
 3. The businesses are ranked for that freelancer's skill. A web designer sees businesses with no website first. An SEO freelancer sees sites Google can barely read.
 4. For each lead the freelancer can draft an email. Claude writes it from the audit findings; without an API key, a hand-written template per finding does the job. The email links to a public report the owner can open.
-5. The freelancer sends it from Gmail or their own mail app and tracks the lead through a pipeline. Marking a lead as emailed sets a follow-up reminder for three days later; the Today page lists who to chase, and the daily job emails a digest.
+5. The freelancer edits and sends it from the lead's page. It goes out as "Their Name via Pitchcraft", and the business's reply comes back into the app: onto the lead's conversation, into the Inbox, and as an email alert. The lead moves to Emailed, then Replied, on its own. Three days after an unanswered email, the lead shows up under "Follow up today" with a follow-up already drafted.
 
 ### After the client says yes
 
@@ -70,12 +70,13 @@ Every variable is listed in [`.env.example`](.env.example). These matter most:
 
 | Variable | Needed for |
 |---|---|
-| `DATABASE_URL`, `APP_URL`, `CRON_SECRET` | Always |
+| `DATABASE_URL`, `APP_URL`, `CRON_JOB_SECRET` | Always |
 | `GOOGLE_MAPS_API_KEY` | Finding businesses on Google Maps. Without it the app falls back to OpenStreetMap. |
 | `OSM_CONTACT_EMAIL` | Only with OpenStreetMap, whose usage policy asks for a contact address |
 | `ANTHROPIC_API_KEY`, `PITCH_MODEL` | AI-written emails. Defaults to `claude-opus-5-5`, about a cent per draft. `claude-haiku-5-5` costs far less. |
 | `PAGESPEED_API_KEY` | Google's phone speed score. The keyless quota is tiny. |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Password resets and email confirmation |
+| `RESEND_API_KEY`, `EMAIL_FROM` | All email: account emails, and emails freelancers send to businesses |
+| `OUTREACH_FROM_ADDRESS`, `REPLY_DOMAIN`, `RESEND_WEBHOOK_SECRET` | Sending to businesses as "Name via Pitchcraft" and bringing their replies back into the app |
 | `LEGAL_OPERATOR_NAME`, `SUPPORT_EMAIL`, `LEGAL_COUNTRY` | The Terms, Privacy and Refund pages |
 | `NEXT_PUBLIC_PADDLE_*`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_API_KEY` | Card payments |
 | `KHALTI_SECRET_KEY` | Payments in Nepal |
@@ -118,7 +119,18 @@ Paddle reviews `/terms`, `/privacy` and `/refund` during approval.
 
 **Khalti.** Live payouts need a registered firm and a PAN. The sandbox at test-admin.khalti.com is enough to test. The return URL is `/api/billing/khalti/callback`, and each payment adds 30 days of Pro.
 
-**Resend.** Verify your sending domain, then set `RESEND_API_KEY` and `EMAIL_FROM`.
+**Resend (sending and receiving email).** Freelancers send every email from inside the app, and replies come back into it. Use subdomains, so a spam complaint can never touch your main domain's email:
+
+1. **Sending.** In Resend, add and verify `mail.yourdomain.com` (Resend shows the SPF, DKIM and DMARC records to add). Set:
+   - `RESEND_API_KEY`
+   - `EMAIL_FROM=Pitchcraft <hello@mail.yourdomain.com>` for account emails
+   - `OUTREACH_FROM_ADDRESS=outreach@mail.yourdomain.com`. Freelancers' emails go out as "Kushal Budhathoki via Pitchcraft <outreach@mail.yourdomain.com>".
+2. **Receiving replies.** In Resend, under Receiving, add `reply.yourdomain.com` and create the MX record it shows. Set `REPLY_DOMAIN=reply.yourdomain.com`. Each email's Reply-To is `reply+<lead token>@reply.yourdomain.com`, which is how a reply finds its lead.
+3. **Webhook.** In Resend, under Webhooks, add `https://YOUR-DOMAIN/api/webhooks/resend` with the events `email.received`, `email.bounced` and `email.complained`. Put its signing secret (`whsec_...`) in `RESEND_WEBHOOK_SECRET`.
+
+Without `REPLY_DOMAIN`, sending still works and replies go to the freelancer's own inbox instead of the app.
+
+Resend's free plan covers 3,000 emails a month (100 a day); the $20 plan covers 50,000.
 
 **Google Maps.**
 1. In Google Cloud Console, create a project and attach a billing account. Google requires a card even for free usage.
@@ -142,6 +154,13 @@ Google only allows its business details to be cached for 30 days. The daily job 
 - Booking forms on client sites have a honeypot field and allow five requests an hour per visitor per site.
 - Quote, invoice and report links use 10-character random ids. They're meant to be shared, so treat them like an unlisted link.
 - Monitors use the same public-address-only fetcher as the audit.
+- Emails to businesses protect the shared sending domain:
+  - Only confirmed accounts can send, up to 20 emails a day on Free and 150 on Pro.
+  - At most 3 unanswered cold emails go to one business.
+  - Every cold email has an opt-out link and honours "stop" replies.
+  - Opt-outs, bounces and spam complaints go on one do-not-email list that applies to every user.
+  - The sender name is stripped of characters that could change email headers.
+- Resend webhooks are verified with their Svix signature and a five-minute window. Retries are harmless, because each email is stored once.
 
 ## Tests
 
@@ -160,6 +179,8 @@ npm run test:all          # all of the above, plus lint and typecheck
 - Google Text Search returns at most 60 businesses per search. Once a user has seen them all, they need a wider distance or another business type.
 - Email confirmation is a reminder, not a gate. If fake signups become a problem, require `emailVerifiedAt` before delivering leads.
 - Background jobs run inside one request, up to 5 minutes. That's plenty for hundreds of users, but beyond that lead delivery should move to a queue.
+- Emails are plain text, with no tracking pixels or open rates. That's deliberate: plain text lands in the inbox more often.
+- Attachments in replies aren't shown. The freelancer sees the text and is told by email when a reply arrives.
 - Lead delivery runs one user at a time to stay within OpenStreetMap's fair-use policy. With many users it should move to a queue, probably with a paid Overpass instance.
 - The legal pages are a plain-language starting point. Have a lawyer read them before you grow.
 - Published client sites live at `/s/:slug` on Pitchcraft's domain. Custom domains aren't supported yet; for the client's own domain, download the HTML and host it there. The downloaded copy has call, WhatsApp and email buttons instead of the booking form, since the form needs Pitchcraft behind it.

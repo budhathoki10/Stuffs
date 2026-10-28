@@ -1,12 +1,12 @@
 # Test report
 
-Run on 2026-10-28 with `npm run test:all`. 200 tests, all passing. Lint and typecheck are clean.
+Run on 2026-10-28 with `npm run test:all`. 227 tests, all passing. Lint and typecheck are clean.
 
 | Suite | What it checks | Result |
 |---|---|---|
-| Unit (`npm test`) | Pure logic: audit rules, SSRF guard, pitches, ranking, plans, payments, emails, quote pricing, client website HTML, uptime and alert rules | 126 passed |
-| Integration (`npm run test:integration`) | Real Postgres: lead delivery and limits, one-time tokens, payments, account deletion, data privacy, quotes, invoices, client sites, monitoring, follow-ups | 49 passed |
-| Browser (`npm run test:e2e`) | The built app in Chrome: every page and flow a visitor, freelancer or their client uses | 25 passed |
+| Unit (`npm test`) | Pure logic: audit rules, SSRF guard, pitches, ranking, plans, payments, emails, quote pricing, client website HTML, uptime and alert rules, email reply parsing and webhook signatures | 136 passed |
+| Integration (`npm run test:integration`) | Real Postgres: lead delivery and limits, one-time tokens, payments, account deletion, data privacy, quotes, invoices, client sites, monitoring, follow-ups, sending limits, replies and opt-outs | 63 passed |
+| Browser (`npm run test:e2e`) | The built app in Chrome: every page and flow a visitor, freelancer or their client uses, including sending email and receiving replies | 28 passed |
 
 ## Not covered here (needs your real accounts)
 
@@ -26,6 +26,11 @@ They get checked live after deployment.
 - a freelancer quotes, builds the site, proves the result and gets paid, all in the app
 - unpublished sites and unknown client links are not found
 - emailing a lead sets a follow-up that shows on Today
+
+**email.spec.ts**
+- pitch, reply, quote and opt-out all happen inside the app
+- bounces are recorded and the address is never emailed again
+- an unknown opt-out link explains what to do instead
 
 **pitchcraft.spec.ts**
 - visitor can audit a website and get a sample pitch without signing up
@@ -135,6 +140,26 @@ They get checked live after deployment.
 **integration/google.test.ts › lead delivery from Google**
 - buys only one page of results when it already has enough new businesses
 - stores Google businesses, skips closed ones, and audits their real websites
+
+**integration/outreach.test.ts › sending from the app**
+- sends as the freelancer via Pitchcraft, with a reply address for this lead and an opt-out line
+- without a reply domain, replies go to the freelancer's own inbox
+- saves an address the freelancer typed in for a lead that had none
+- only sends for confirmed accounts, to valid addresses
+- stops after three unanswered cold emails, and a reply resets the count
+- caps emails per day by plan
+- records a failed send without moving the lead
+
+**integration/outreach.test.ts › replies**
+- land on the lead, mark it replied, clear the reminder and notify the freelancer
+- threads the freelancer's answer onto the reply
+- ignores mail to unknown or foreign addresses
+- fetches the body from Resend's receiving API
+
+**integration/outreach.test.ts › opting out**
+- a reply saying stop opts out the lead and the address, for every freelancer
+- the opt-out link works by token and is idempotent
+- bounces and spam complaints suppress the address and flag the message
 
 ## Unit tests
 
@@ -269,6 +294,24 @@ They get checked live after deployment.
 
 **leads.test.ts › weekStart**
 - returns the Monday of the week
+
+**outreach.test.ts › addresses**
+- normalizes and validates
+- keeps header-breaking characters out of the sender name
+- routes replies by token, only on our domain
+
+**outreach.test.ts › replies**
+- adds Re: once
+- keeps only the new part of a reply
+- recognises a request to stop, and nothing longer
+
+**outreach.test.ts › drafts**
+- adds an opt-out line to cold emails
+- writes a follow-up about the problem the pitch led with
+
+**outreach.test.ts › webhook signatures**
+- accepts a valid Svix signature, including among several
+- rejects tampering, replays and missing secrets
 
 **pitch.test.ts › templatePitch**
 - builds on the top audit issue and signs with the freelancer's name

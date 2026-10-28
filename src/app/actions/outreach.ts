@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth/session";
 import { isOutgoingKind } from "@/lib/outreach/text";
 import { limitsFor } from "@/lib/plans";
 import { ownedLead } from "@/lib/services/leads";
-import { leadByReplyToken, optOutLead, sendToLead } from "@/lib/services/outreach";
+import { leadByReplyToken, markRead, optOutLead, sendToLead } from "@/lib/services/outreach";
 import { markQuoteSent } from "@/lib/services/quotes";
 
 export type SendState = { error?: string; success?: string; sentAt?: number } | undefined;
@@ -46,6 +46,13 @@ export async function sendMessage(_: SendState, formData: FormData): Promise<Sen
   revalidatePath(`/app/leads/${lead.id}`, "layout");
   revalidatePath("/app/inbox");
   return { success: `Sent to ${parsed.data.to}.`, sentAt: Date.now() };
+}
+
+export async function markConversationRead(leadId: string) {
+  const user = await requireUser();
+  if (typeof leadId !== "string" || !(await ownedLead(user.id, leadId))) return;
+  await markRead(user.id, leadId);
+  revalidatePath("/app", "layout");
 }
 
 /** Public: the business clicked the opt-out link at the bottom of an email. */

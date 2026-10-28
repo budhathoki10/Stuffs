@@ -69,8 +69,9 @@ test("freelancer signs up, gets leads, pitches, and tracks a win", async ({ page
   await expect(page.getByText("hello@maple.test").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Draft the email" }).click();
-  await expect(page.getByLabel("Pitch body")).toHaveValue(/Kushal Budhathoki\nhttps:\/\/kushal\.dev/);
-  await expect(page.getByRole("link", { name: "Open in Gmail" })).toHaveAttribute("href", /to=hello%40maple\.test/);
+  await expect(page.getByLabel("Message")).toHaveValue(/Kushal Budhathoki\nhttps:\/\/kushal\.dev/);
+  await expect(page.getByLabel("To")).toHaveValue("hello@maple.test");
+  await expect(page.getByRole("button", { name: "Send email" })).toBeVisible();
 
   await page.getByLabel("Status").selectOption("won");
   await page.getByRole("button", { name: "Save" }).click();

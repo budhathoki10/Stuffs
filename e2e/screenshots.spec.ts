@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { setUpFreelancer } from "./helpers";
+import { E2E_RESEND_WEBHOOK_SECRET } from "../playwright.config";
+import { signWebhook } from "../src/lib/outreach/text";
+import { latestEmailLink, query, setUpFreelancer } from "./helpers";
 
 // Regenerates the images in docs/screenshots. Run with SCREENSHOTS=1 npx playwright test screenshots.
 test.skip(!process.env.SCREENSHOTS, "Set SCREENSHOTS=1 to regenerate docs/screenshots");
@@ -74,4 +76,39 @@ test("client workspace screenshots", async ({ page, browser }) => {
 
   await page.goto("/app/clients");
   await page.screenshot(shot("desktop-clients"));
+});
+
+test("conversation and inbox screenshots", async ({ page }) => {
+  const address = `shots-mail-${Date.now()}@example.com`;
+  await setUpFreelancer(page, address);
+  await page.goto(latestEmailLink(address, "Confirm"));
+  await page.goto("/app");
+  await page.getByRole("link", { name: "Maple Street Dentist" }).click();
+  await page.getByRole("button", { name: "Draft the email" }).click();
+  await page.getByRole("button", { name: "Send email" }).click();
+  await expect(page.getByRole("heading", { name: "Conversation" })).toBeVisible();
+  const lead = page.url();
+
+  const [{ token }] = await query((sql) => sql`select reply_token as token from leads where reply_token is not null order by updated_at desc limit 1`);
+  const body = JSON.stringify({
+    type: "email.received",
+    data: {
+      email_id: `shot_${token}`,
+      from: "Dr. Anita Rai <hello@maple.test>",
+      to: [`reply+${token}@reply.pitchcraft.test`],
+      subject: "Re: Your website",
+      text: "Thanks for pointing that out, I didn't know the site looked like that on phones.\n\nWhat would it cost to fix, and how long would it take?\n\nAnita",
+    },
+  });
+  const ts = Math.floor(Date.now() / 1000);
+  await page.request.post("/api/webhooks/resend", {
+    data: body,
+    headers: { "content-type": "application/json", "svix-id": "shot", "svix-timestamp": String(ts), "svix-signature": signWebhook(E2E_RESEND_WEBHOOK_SECRET, "shot", ts, body) },
+  });
+
+  await page.goto("/app/inbox");
+  await page.screenshot(shot("desktop-inbox"));
+  await page.goto(lead);
+  await page.locator("#conversation").getByLabel("Message").fill("Hi Anita,\n\nAbout NPR 25,000, and I can have it done in a week. I'll send a proper quote today.\n\nKushal");
+  await page.screenshot(shot("desktop-conversation"));
 });

@@ -5,13 +5,14 @@ import { z } from "zod";
 import { AuditSummary, CheckList } from "@/components/audit-report";
 import { LeadPitch, LeadStatusForm } from "@/components/lead-actions";
 import { Conversation } from "@/components/workspace/conversation";
+import { MarkRead } from "@/components/workspace/mark-read";
 import { topIssues } from "@/lib/audit";
 import { Eyebrow } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
 import type { LeadStatus } from "@/lib/leads/status";
 import { needsRefresh, refreshGoogleLead } from "@/lib/services/google-refresh";
 import { getLeadWithAudit, latestPitch } from "@/lib/services/leads";
-import { conversation, markRead } from "@/lib/services/outreach";
+import { conversation } from "@/lib/services/outreach";
 import { quoteForLead } from "@/lib/services/quotes";
 import { siteForLead } from "@/lib/services/sites";
 
@@ -39,7 +40,7 @@ export default async function LeadPage({ params }: PageProps<"/app/leads/[id]">)
     siteForLead(user.id, lead.id),
     conversation(user.id, lead.id),
   ]);
-  if (messages.some((m) => m.direction === "in" && !m.readAt)) await markRead(user.id, lead.id);
+  const hasUnread = messages.some((m) => m.direction === "in" && !m.readAt);
   const emailed = messages.some((m) => m.direction === "out" && m.status === "sent");
   const lastIn = messages.findLast((m) => m.direction === "in");
   const base = `/app/leads/${lead.id}`;
@@ -66,6 +67,7 @@ export default async function LeadPage({ params }: PageProps<"/app/leads/[id]">)
           {messages.length > 0 ? (
             <section id="conversation" className="scroll-mt-6">
               <h2 className="mb-4 font-serif text-2xl font-medium">Conversation</h2>
+              {hasUnread && <MarkRead leadId={lead.id} />}
               <Conversation
                 leadId={lead.id}
                 businessName={lead.name}
