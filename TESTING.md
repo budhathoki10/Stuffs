@@ -1,10 +1,10 @@
 # Test report
 
-Run on 2026-10-28 with `npm run test:all`. 227 tests, all passing. Lint and typecheck are clean.
+Run on 2026-10-29 with `npm run test:all`. 234 tests, all passing. Lint and typecheck are clean.
 
 | Suite | What it checks | Result |
 |---|---|---|
-| Unit (`npm test`) | Pure logic: audit rules, SSRF guard, pitches, ranking, plans, payments, emails, quote pricing, client website HTML, uptime and alert rules, email reply parsing and webhook signatures | 136 passed |
+| Unit (`npm test`) | Pure logic: audit rules, SSRF guard, pitches, ranking, plans, payments, emails, quote pricing, client website HTML, uptime and alert rules, email reply parsing and webhook signatures | 143 passed |
 | Integration (`npm run test:integration`) | Real Postgres: lead delivery and limits, one-time tokens, payments, account deletion, data privacy, quotes, invoices, client sites, monitoring, follow-ups, sending limits, replies and opt-outs | 63 passed |
 | Browser (`npm run test:e2e`) | The built app in Chrome: every page and flow a visitor, freelancer or their client uses, including sending email and receiving replies | 28 passed |
 
@@ -286,6 +286,15 @@ They get checked live after deployment.
 - builds a query for every tag of the niche
 - clamps the radius
 - parses nodes and ways into businesses
+
+**leads.test.ts › OpenStreetMap servers**
+- treats a timed-out query as a failure, not as an empty area
+- moves on to the next server when one is busy, refuses, or times out
+- explains what every server said when none can answer
+- uses OVERPASS_URL instead of the public servers when set
+- finds a city with Photon when Nominatim refuses
+- says nothing was found only when a geocoder actually answered
+- sends a real contact address, never a placeholder
 
 **leads.test.ts › opportunityScore**
 - ranks businesses without a website highest for web developers

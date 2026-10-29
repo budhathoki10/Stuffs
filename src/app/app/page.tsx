@@ -15,6 +15,8 @@ import { getStats, listLeads } from "@/lib/services/leads";
 import { formatMoney } from "@/lib/util";
 
 export const metadata: Metadata = { title: "Today" };
+// "Find today's leads" may try several OpenStreetMap servers, then checks each website.
+export const maxDuration = 300;
 
 export default async function Dashboard({ searchParams }: PageProps<"/app">) {
   const user = await requireUser();

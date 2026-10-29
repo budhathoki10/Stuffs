@@ -72,7 +72,7 @@ Every variable is listed in [`.env.example`](.env.example). These matter most:
 |---|---|
 | `DATABASE_URL`, `APP_URL`, `CRON_JOB_SECRET` | Always |
 | `GOOGLE_MAPS_API_KEY` | Finding businesses on Google Maps. Without it the app falls back to OpenStreetMap. |
-| `OSM_CONTACT_EMAIL` | Only with OpenStreetMap, whose usage policy asks for a contact address |
+| `OSM_CONTACT_EMAIL` | Only with OpenStreetMap. Use your real address: Nominatim blocks requests without one. |
 | `ANTHROPIC_API_KEY`, `PITCH_MODEL` | AI-written emails. Defaults to `claude-opus-5-5`, about a cent per draft. `claude-haiku-5-5` costs far less. |
 | `PAGESPEED_API_KEY` | Google's phone speed score. The keyless quota is tiny. |
 | `RESEND_API_KEY`, `EMAIL_FROM` | All email: account emails, and emails freelancers send to businesses |
@@ -142,6 +142,22 @@ Cost: searches ask for website and phone, so they're billed at the Enterprise ra
 
 Google only allows its business details to be cached for 30 days. The daily job re-fetches Google leads older than 29 days, and so does opening one. Pages that show Google data credit Google Maps.
 
+**OpenStreetMap troubleshooting.** OpenStreetMap is free, but its public servers are shared and often busy. The app handles this in three ways:
+- It tries three Overpass servers in turn.
+- It treats a "query timed out" answer as a failure, not as an empty area.
+- If Nominatim refuses a city lookup, it uses Photon instead.
+
+If leads still don't come through, run this on the machine that has the problem:
+
+```bash
+npm run check:osm -- "Kathmandu, Nepal" dentist 5
+```
+
+It prints what every server answered. Common causes:
+- **No contact email.** Set `OSM_CONTACT_EMAIL` to a real address.
+- **All servers busy or blocking cloud hosts.** Wait, set `OVERPASS_URL` to another or your own Overpass server, or switch to Google Maps with `GOOGLE_MAPS_API_KEY`.
+- **Radius too large.** A big radius in a dense city can time out; 5 to 10 km is plenty.
+
 ## Security notes
 
 - The audit fetcher only reaches public addresses. It checks every redirect, and it checks the resolved IP when it connects, so DNS rebinding can't reach internal services.
@@ -181,6 +197,7 @@ npm run test:all          # all of the above, plus lint and typecheck
 - Background jobs run inside one request, up to 5 minutes. That's plenty for hundreds of users, but beyond that lead delivery should move to a queue.
 - Emails are plain text, with no tracking pixels or open rates. That's deliberate: plain text lands in the inbox more often.
 - Attachments in replies aren't shown. The freelancer sees the text and is told by email when a reply arrives.
+- OpenStreetMap's public servers are best effort. For a business that depends on leads arriving every morning, use Google Maps, or run your own Overpass server.
 - Lead delivery runs one user at a time to stay within OpenStreetMap's fair-use policy. With many users it should move to a queue, probably with a paid Overpass instance.
 - The legal pages are a plain-language starting point. Have a lawyer read them before you grow.
 - Published client sites live at `/s/:slug` on Pitchcraft's domain. Custom domains aren't supported yet; for the client's own domain, download the HTML and host it there. The downloaded copy has call, WhatsApp and email buttons instead of the booking form, since the form needs Pitchcraft behind it.

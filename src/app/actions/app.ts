@@ -8,6 +8,7 @@ import { db, schema } from "@/db";
 import { topIssues } from "@/lib/audit";
 import { requireUser } from "@/lib/auth/session";
 import { leadProvider, NICHES, type NicheId } from "@/lib/leads";
+import { OsmUnavailableError } from "@/lib/leads/osm";
 import { CHASE_STATUSES, LEAD_STATUSES } from "@/lib/leads/status";
 import { generatePitch } from "@/lib/pitch";
 import { addDays } from "@/lib/dates";
@@ -52,7 +53,8 @@ export async function saveSettings(_: FormState, formData: FormData): Promise<Fo
     let point;
     try {
       point = await leadProvider().geocode(location);
-    } catch {
+    } catch (err) {
+      console.error(`Looking up "${location}" failed`, err);
       return { error: "We couldn't look up that location right now. Try again in a minute." };
     }
     if (!point) return { error: `We couldn't find "${location}". Try adding the country, like "Pokhara, Nepal".` };
@@ -71,6 +73,11 @@ export async function findLeadsNow(_: FormState): Promise<FormState> {
     result = await deliverLeads(user);
   } catch (err) {
     console.error("Lead delivery failed", err);
+    if (err instanceof OsmUnavailableError) {
+      return {
+        error: `OpenStreetMap's servers are too busy to answer right now (we tried ${err.attempts.length}). Try again in a few minutes. For a faster, steadier source, add a Google Maps key.`,
+      };
+    }
     return { error: "The map service didn't answer. Try again in a few minutes." };
   }
   revalidatePath("/app");
